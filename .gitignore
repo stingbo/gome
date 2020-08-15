@@ -1,0 +1,4 @@
+.idea
+test.sql
+config.ini
+api/*.go
