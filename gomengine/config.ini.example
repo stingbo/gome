@@ -1,0 +1,20 @@
+[grpc]
+host = 127.0.0.1
+port = 8088
+
+[redis]
+host = 127.0.0.1
+port = 3306
+password = 123456
+
+[rabbitmq]
+host = 127.0.0.1
+port = 3306
+password = 123456
+
+[mysql]
+host = 127.0.0.1
+port = 3306
+database = dbname
+username = root
+password = 123456
