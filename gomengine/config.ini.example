@@ -4,12 +4,13 @@ port = 8088
 
 [redis]
 host = 127.0.0.1
-port = 3306
+port = 6379
 password = 123456
 
 [rabbitmq]
 host = 127.0.0.1
-port = 3306
+port = 5672
+username = root
 password = 123456
 
 [mysql]

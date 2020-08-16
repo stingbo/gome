@@ -6,7 +6,11 @@ message OrderRequest {
     string uuid = 1; // 用户唯一标识
     string oid = 2; // 订单唯一标识
     string symbol = 3; // 交易对
-    string transaction = 4; // 交易方向，buy/sale
+    enum TransactionType {
+        BUY = 0;
+        SALE = 1;
+    }
+    TransactionType transaction = 4; // 交易方向，buy/sale
     double price = 5; // 交易价格
     double volume = 6; // 交易数量
 }

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"log"
 	"strings"
+	"gome/gomengine/RabbitMQ"
 )
 
 type Order struct{}
@@ -15,6 +16,12 @@ type Order struct{}
 func (fd *Order) DoOrder(ctx context.Context, in *api.OrderRequest) (out *api.OrderResponse, err error) {
 	str := in.Symbol
 	out = &api.OrderResponse{Message: strings.ToUpper(str)+" sting_bo"}
+
+
+	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
+
+	rabbitmq.PublishSimple(str)
+
 	return out, nil
 }
 
