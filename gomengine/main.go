@@ -9,6 +9,7 @@ import (
 	"log"
 	"strings"
 	"gome/gomengine/RabbitMQ"
+	"gome/gomengine/gRPC"
 )
 
 type Order struct{}
@@ -31,7 +32,8 @@ func main() {
 			fmt.Println(err)
 		}
 	}()
-	listener := getRpcListener()
+	gomegrpc := gRPC.NewRpcListener()
+	listener := gomegrpc.Listener
 
 	rpcServer := grpc.NewServer()
 	api.RegisterOrderServer(rpcServer, &Order{})
