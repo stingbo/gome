@@ -1,8 +1,10 @@
 package RabbitMQ
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
+	"gome/api"
 	"log"
 	"github.com/unknwon/goconfig"
 )
@@ -59,7 +61,7 @@ func NewSimpleRabbitMQ(queuename string) *RabbitMQ {
 	return NewRabbitMq(queuename, "", "")
 }
 
-func (r *RabbitMQ) PublishSimple(message string) {
+func (r *RabbitMQ) PublishSimple(message []byte) {
 	//1. 申请队列，如果队列不存在会自动创建，如何存在则跳过创建
 	_, err := r.channel.QueueDeclare(
 		r.Queuename,
@@ -114,8 +116,15 @@ func (r *RabbitMQ) ConsumeSimple() {
 	// 启用协程处理消息
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-			fmt.Println(d.Body)
+			//log.Printf("Received a message: %s", d.Body)
+			//fmt.Println(d.Body)
+			order := api.OrderRequest{}
+			err := json.Unmarshal(d.Body, &order)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(order.Oid)
+			fmt.Println(order.Symbol)
 		}
 
 	}()
