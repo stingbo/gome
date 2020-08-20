@@ -20,7 +20,6 @@ func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (respon
 
 	order, err := json.Marshal(request)
 
-
 	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
 
 	rabbitmq.PublishSimple(order)

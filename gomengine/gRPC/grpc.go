@@ -9,17 +9,17 @@ import (
 type gRPC struct {
 	Listener net.Listener
 	Protocol string
-	RPCurl string
+	RPCurl   string
 }
 
 func NewRpcListener() *gRPC {
 	config, err := goconfig.LoadConfigFile("config.ini")
-	host,_ := config.GetValue("grpc", "host")
-	port,_ := config.GetValue("grpc", "port")
+	host, _ := config.GetValue("grpc", "host")
+	port, _ := config.GetValue("grpc", "port")
 	if err != nil {
 		panic("配置读取失败")
 	}
-	RPCurl := host+":"+port
+	RPCurl := host + ":" + port
 	gRPC := &gRPC{Protocol: "tcp", RPCurl: RPCurl}
 
 	gRPC.Listener, err = net.Listen(gRPC.Protocol, gRPC.RPCurl)

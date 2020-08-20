@@ -3,6 +3,7 @@ module gome
 go 1.15
 
 require (
+	github.com/go-redis/redis/v8 v8.0.0-beta.7
 	github.com/golang/protobuf v1.4.2
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/streadway/amqp v1.0.0
