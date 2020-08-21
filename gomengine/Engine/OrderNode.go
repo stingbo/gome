@@ -1,15 +1,18 @@
 package Engine
 
-import "gome/api"
+import (
+	"gome/api"
+	"math"
+)
 
 type OrderNode struct {
 	Uuid        string  // 用户唯一标识
 	Oid         string  // 订单唯一标识
 	Symbol      string  // 交易对
-	Transaction string  // 交易方向，buy/sale
+	Transaction int32  // 交易方向，buy/sale
 	Price       float64 // 交易价格
 	Volume      float64 // 交易数量
-	Accuracy    uint8   // 计算精度
+	Accuracy    float64   // 计算精度
 	Node        string  // 节点
 	IsFirst     bool    // 是否是起始节点
 	IsLast      bool    // 是否是结束节点
@@ -19,7 +22,7 @@ type OrderNode struct {
 
 	// hash对比池标识.
 	OrderHashKey   string
-	orderHashField string
+	OrderHashField string
 
 	// zset委托列表.
 	OrderListZsetKey string
@@ -35,6 +38,11 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 	SetUuid(node, order)
 	SetOid(node, order)
 	SetSymbol(node, order)
+	SetTransaction(node, order)
+	SetVolume(node, order)
+	SetPrice(node, order)
+	SetOrderHashKey(node)
+	SetListZsetKey(node)
 
 	return node
 }
@@ -59,6 +67,38 @@ func SetOid(node *OrderNode, order api.OrderRequest) *OrderNode {
 
 func SetSymbol(node *OrderNode, order api.OrderRequest) *OrderNode {
 	node.Symbol = order.Symbol
+
+	return node
+}
+
+func SetTransaction(node *OrderNode, order api.OrderRequest) *OrderNode {
+	node.Transaction = int32(order.Transaction)
+
+	return node
+}
+
+func SetVolume(node *OrderNode, order api.OrderRequest) *OrderNode {
+	node.Volume = order.Volume * math.Pow(10,node.Accuracy)
+
+	return node
+}
+
+func SetPrice(node *OrderNode, order api.OrderRequest) *OrderNode {
+	node.Price = order.Price * math.Pow(10,node.Accuracy)
+
+	return node
+}
+
+func SetOrderHashKey(node *OrderNode) *OrderNode {
+	node.OrderHashKey = node.Symbol+":comparison"
+	node.OrderHashField = node.Symbol+":"+node.Uuid+":"+node.Oid;
+
+	return node
+}
+
+func SetListZsetKey(node *OrderNode) *OrderNode {
+
+	node.OrderListZsetKey = node.Symbol+":"+api.TransactionType_name[node.Transaction]
 
 	return node
 }
