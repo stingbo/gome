@@ -3,16 +3,17 @@ package Engine
 import (
 	"gome/api"
 	"math"
+	"strconv"
 )
 
 type OrderNode struct {
 	Uuid        string  // 用户唯一标识
 	Oid         string  // 订单唯一标识
 	Symbol      string  // 交易对
-	Transaction int32  // 交易方向，buy/sale
+	Transaction int32   // 交易方向，buy/sale
 	Price       float64 // 交易价格
 	Volume      float64 // 交易数量
-	Accuracy    float64   // 计算精度
+	Accuracy    float64 // 计算精度
 	Node        string  // 节点
 	IsFirst     bool    // 是否是起始节点
 	IsLast      bool    // 是否是结束节点
@@ -43,6 +44,9 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 	SetPrice(node, order)
 	SetOrderHashKey(node)
 	SetListZsetKey(node)
+	SetDepthHashKey(node)
+	SetNode(node)
+	SetNodeLink(node)
 
 	return node
 }
@@ -78,27 +82,45 @@ func SetTransaction(node *OrderNode, order api.OrderRequest) *OrderNode {
 }
 
 func SetVolume(node *OrderNode, order api.OrderRequest) *OrderNode {
-	node.Volume = order.Volume * math.Pow(10,node.Accuracy)
+	node.Volume = order.Volume * math.Pow(10, node.Accuracy)
 
 	return node
 }
 
 func SetPrice(node *OrderNode, order api.OrderRequest) *OrderNode {
-	node.Price = order.Price * math.Pow(10,node.Accuracy)
+	node.Price = order.Price * math.Pow(10, node.Accuracy)
 
 	return node
 }
 
 func SetOrderHashKey(node *OrderNode) *OrderNode {
-	node.OrderHashKey = node.Symbol+":comparison"
-	node.OrderHashField = node.Symbol+":"+node.Uuid+":"+node.Oid;
+	node.OrderHashKey = node.Symbol + ":comparison"
+	node.OrderHashField = node.Symbol + ":" + node.Uuid + ":" + node.Oid
 
 	return node
 }
 
 func SetListZsetKey(node *OrderNode) *OrderNode {
+	node.OrderListZsetKey = node.Symbol + ":" + api.TransactionType_name[node.Transaction]
 
-	node.OrderListZsetKey = node.Symbol+":"+api.TransactionType_name[node.Transaction]
+	return node
+}
+
+func SetDepthHashKey(node *OrderNode) *OrderNode {
+	node.OrderDepthHashKey = node.Symbol + ":depth"
+	node.OrderDepthHashField = node.Symbol + ":depth:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
+
+	return node
+}
+
+func SetNode(node *OrderNode) *OrderNode {
+	node.Node = node.Symbol + ":node:" + node.Oid
+
+	return node
+}
+
+func SetNodeLink(node *OrderNode) *OrderNode {
+	node.NodeLink = node.Symbol + ":link:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
 
 	return node
 }

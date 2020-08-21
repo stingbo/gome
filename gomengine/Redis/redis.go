@@ -13,11 +13,11 @@ func NewRedisClient() *redis.Client {
 	host, _ := config.GetValue("redis", "host")
 	port, _ := config.GetValue("redis", "port")
 	//password,_ := config.GetValue("redis", "password")
-	gomerdb := redis.NewClient(&redis.Options{
+	redis := redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
 
-	return gomerdb
+	return redis
 }

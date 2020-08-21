@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gome/api"
+	"gome/gomengine/Engine"
 	"gome/gomengine/RabbitMQ"
 	"gome/gomengine/gRPC"
 	"google.golang.org/grpc"
@@ -15,13 +16,11 @@ import (
 type Order struct{}
 
 func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (response *api.OrderResponse, err error) {
-	//str := in.Symbol
-	//out = &api.OrderResponse{Message: strings.ToUpper(str)+" sting_bo"}
+	orderNode := Engine.NewOrderNode(*request)
+	Engine.SetPrePool(*orderNode)
 
-	order, err := json.Marshal(request)
-
+	order, err := json.Marshal(orderNode)
 	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
-
 	rabbitmq.PublishSimple(order)
 	response = &api.OrderResponse{Message: "下单成功"}
 

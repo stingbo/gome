@@ -1,14 +1,11 @@
 package RabbitMQ
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
 	"github.com/unknwon/goconfig"
-	"gome/api"
 	"gome/gomengine/Engine"
-	"gome/gomengine/Redis"
 	"log"
 )
 
@@ -115,27 +112,20 @@ func (r *RabbitMQ) ConsumeSimple() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	gomerdb := Redis.NewRedisClient()
+	//redis := Redis.NewRedisClient()
 	forever := make(chan bool)
+	log.Printf("[*] Waiting for message, To exit press CTRL+C")
 	// 启用协程处理消息
 	//go func() {
 	for d := range msgs {
 		//log.Printf("Received a message: %s", d.Body)
-		//fmt.Println(d.Body)
-		order := api.OrderRequest{}
+		order := Engine.OrderNode{}
 		err := json.Unmarshal(d.Body, &order)
 		if err != nil {
 			fmt.Println(err)
 		}
-		node := Engine.NewOrderNode(order)
-		fmt.Println("-------------", node)
-		var ctx = context.Background()
-		err = gomerdb.Set(ctx, "testte", order.Symbol, 0).Err()
-		//if err != nil {
-		//panic(err)
-		//}
-		fmt.Println(order.Oid)
-		fmt.Println(order.Symbol)
+		//fmt.Println("-------------", node)
+		Engine.Match(order)
 	}
 
 	//}()
