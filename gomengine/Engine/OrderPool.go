@@ -1,19 +1,20 @@
 package Engine
 
 import (
-	"context"
-	"gome/gomengine/Redis"
+	redis2 "github.com/go-redis/redis/v8"
+	"strconv"
 )
 
-var ctx = context.Background()
-var redis = Redis.NewRedisClient()
-
-func SetPrePool(order OrderNode) {
-	redis.HSet(ctx, order.OrderHashKey, order.OrderHashField, 1)
+type Pool struct {
+	Node OrderNode
 }
 
-func ExistsPrePool(order OrderNode) bool {
-	exists := redis.HExists(ctx, order.OrderHashKey, order.OrderHashField)
+func (pl *Pool) SetPrePool() {
+	redis.HSet(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField, 1)
+}
+
+func (pl *Pool) ExistsPrePool() bool {
+	exists := redis.HExists(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
 	//fmt.Printf("%#v\n",exists)   // main.point{x:1, y:2}
 	//fmt.Printf("%T\n",exists)
 	//cacheOrder, _ := json.Marshal(order)
@@ -22,8 +23,63 @@ func ExistsPrePool(order OrderNode) bool {
 	return exists.Val()
 }
 
-func DeletePrePool(order OrderNode) {
-	if true == ExistsPrePool(order) {
-		redis.HDel(ctx, order.OrderHashKey, order.OrderHashField)
+func (pl *Pool) DeletePrePool() {
+	if true == pl.ExistsPrePool() {
+		redis.HDel(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
+	}
+}
+
+//放入价格点对应的深度池
+func (pl *Pool) SetDepthLink() bool {
+	link := &NodeLink{Node: pl.Node}
+	first := link.GetFirstNode()
+	if first.Oid == "" {
+		link.InitOrderLink()
+
+		return true
+	}
+	last := link.GetLast()
+	if last.Oid == "" {
+		panic("expects last node is not empty.")
+	}
+	link.SetLast()
+
+	return true
+}
+
+//从价格点对应的深度链删除
+func (pl *Pool) DeleteDepthLink() bool {
+	link := &NodeLink{Node: pl.Node}
+	current := link.GetCurrent(pl.Node.NodeName)
+	if current.Oid == "" {
+		return false
+	}
+	link.DeleteLinkNode(current)
+
+	return true
+}
+
+// 增加价格对应的委托量
+func (pl *Pool) SetPoolDepthVolume() {
+	redis.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, pl.Node.Volume)
+}
+
+// 减少价格对应的委托量
+func (pl *Pool) DeletePoolDepthVolume() {
+	redis.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, (pl.Node.Volume * -1))
+}
+
+// 设置价格列表
+func (pl *Pool) SetPoolDepth() {
+	redis.ZAdd(ctx, pl.Node.OrderListZsetKey, &redis2.Z{Score: pl.Node.Price, Member: pl.Node.Price})
+}
+
+// 从价格列表删除
+func (pl *Pool) DeletePoolDepth() {
+	res := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField)
+	volumeStr := res.Val()
+	volume, _ := strconv.ParseFloat(volumeStr, 64)
+	if volume <= 0 {
+		redis.ZRem(ctx, pl.Node.OrderListZsetKey, pl.Node.Price)
 	}
 }

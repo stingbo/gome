@@ -14,7 +14,7 @@ type OrderNode struct {
 	Price       float64 // 交易价格
 	Volume      float64 // 交易数量
 	Accuracy    float64 // 计算精度
-	Node        string  // 节点
+	NodeName    string  // 节点
 	IsFirst     bool    // 是否是起始节点
 	IsLast      bool    // 是否是结束节点
 	PrevNode    string  // 前一个节点
@@ -35,92 +35,68 @@ type OrderNode struct {
 
 func NewOrderNode(order api.OrderRequest) *OrderNode {
 	node := &OrderNode{}
-	SetAccuracy(node)
-	SetUuid(node, order)
-	SetOid(node, order)
-	SetSymbol(node, order)
-	SetTransaction(node, order)
-	SetVolume(node, order)
-	SetPrice(node, order)
-	SetOrderHashKey(node)
-	SetListZsetKey(node)
-	SetDepthHashKey(node)
-	SetNode(node)
-	SetNodeLink(node)
+	node.SetAccuracy()
+	node.SetUuid(order)
+	node.SetOid(order)
+	node.SetSymbol(order)
+	node.SetTransaction(order)
+	node.SetVolume(order)
+	node.SetPrice(order)
+	node.SetOrderHashKey()
+	node.SetListZsetKey()
+	node.SetDepthHashKey()
+	node.SetNodeName()
+	node.SetNodeLink()
 
 	return node
 }
 
-func SetAccuracy(node *OrderNode) *OrderNode {
+func (node *OrderNode) SetAccuracy() {
 	node.Accuracy = 8
-
-	return node
 }
 
-func SetUuid(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetUuid(order api.OrderRequest) {
 	node.Uuid = order.Uuid
-
-	return node
 }
 
-func SetOid(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetOid(order api.OrderRequest) {
 	node.Oid = order.Oid
-
-	return node
 }
 
-func SetSymbol(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetSymbol(order api.OrderRequest) {
 	node.Symbol = order.Symbol
-
-	return node
 }
 
-func SetTransaction(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetTransaction(order api.OrderRequest) {
 	node.Transaction = int32(order.Transaction)
-
-	return node
 }
 
-func SetVolume(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetVolume(order api.OrderRequest) {
 	node.Volume = order.Volume * math.Pow(10, node.Accuracy)
-
-	return node
 }
 
-func SetPrice(node *OrderNode, order api.OrderRequest) *OrderNode {
+func (node *OrderNode) SetPrice(order api.OrderRequest) {
 	node.Price = order.Price * math.Pow(10, node.Accuracy)
-
-	return node
 }
 
-func SetOrderHashKey(node *OrderNode) *OrderNode {
+func (node *OrderNode) SetOrderHashKey() {
 	node.OrderHashKey = node.Symbol + ":comparison"
 	node.OrderHashField = node.Symbol + ":" + node.Uuid + ":" + node.Oid
-
-	return node
 }
 
-func SetListZsetKey(node *OrderNode) *OrderNode {
+func (node *OrderNode) SetListZsetKey() {
 	node.OrderListZsetKey = node.Symbol + ":" + api.TransactionType_name[node.Transaction]
-
-	return node
 }
 
-func SetDepthHashKey(node *OrderNode) *OrderNode {
+func (node *OrderNode) SetDepthHashKey() {
 	node.OrderDepthHashKey = node.Symbol + ":depth"
 	node.OrderDepthHashField = node.Symbol + ":depth:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
-
-	return node
 }
 
-func SetNode(node *OrderNode) *OrderNode {
-	node.Node = node.Symbol + ":node:" + node.Oid
-
-	return node
+func (node *OrderNode) SetNodeName() {
+	node.NodeName = node.Symbol + ":node:" + node.Oid
 }
 
-func SetNodeLink(node *OrderNode) *OrderNode {
+func (node *OrderNode) SetNodeLink() {
 	node.NodeLink = node.Symbol + ":link:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
-
-	return node
 }

@@ -16,9 +16,13 @@ import (
 type Order struct{}
 
 func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (response *api.OrderResponse, err error) {
+	// 实例化撮合所需要的node
 	orderNode := Engine.NewOrderNode(*request)
-	Engine.SetPrePool(*orderNode)
+	// 放入预热池
+	pool := Engine.Pool{Node: *orderNode}
+	pool.SetPrePool()
 
+	// 下单队列
 	order, err := json.Marshal(orderNode)
 	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
 	rabbitmq.PublishSimple(order)
