@@ -25,4 +25,5 @@ message OrderResponse {
 //定义下单服务
 service Order {
     rpc DoOrder(OrderRequest) returns (OrderResponse){}
+    rpc DeleteOrder(OrderRequest) returns (OrderResponse){}
 }

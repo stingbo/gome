@@ -15,10 +15,6 @@ func (pl *Pool) SetPrePool() {
 
 func (pl *Pool) ExistsPrePool() bool {
 	exists := redis.HExists(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
-	//fmt.Printf("%#v\n",exists)   // main.point{x:1, y:2}
-	//fmt.Printf("%T\n",exists)
-	//cacheOrder, _ := json.Marshal(order)
-	//redis.HSet(ctx, order.NodeLink, order.Node, cacheOrder)
 
 	return exists.Val()
 }
@@ -49,8 +45,8 @@ func (pl *Pool) SetDepthLink() bool {
 
 //从价格点对应的深度链删除
 func (pl *Pool) DeleteDepthLink() bool {
-	link := &NodeLink{Node: pl.Node}
-	current := link.GetCurrent(pl.Node.NodeName)
+	link := &NodeLink{Node: pl.Node, Current: &pl.Node}
+	current := link.GetCurrent()
 	if current.Oid == "" {
 		return false
 	}

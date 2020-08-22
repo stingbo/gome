@@ -13,11 +13,17 @@ import (
 	"log"
 )
 
+const (
+	ADD int8 = 1
+	DEL int8 = 2
+)
+
 type Order struct{}
 
 func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (response *api.OrderResponse, err error) {
 	// 实例化撮合所需要的node
 	orderNode := Engine.NewOrderNode(*request)
+	orderNode.Action = ADD
 	// 放入预热池
 	pool := Engine.Pool{Node: *orderNode}
 	pool.SetPrePool()
@@ -26,7 +32,21 @@ func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (respon
 	order, err := json.Marshal(orderNode)
 	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
 	rabbitmq.PublishSimple(order)
-	response = &api.OrderResponse{Message: "下单成功"}
+	response = &api.OrderResponse{Message: "下单执行成功"}
+
+	return response, nil
+}
+
+func (fd *Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (response *api.OrderResponse, err error) {
+	// 实例化撮合所需要的node
+	orderNode := Engine.NewOrderNode(*request)
+	orderNode.Action = DEL
+
+	// 删除队列
+	order, err := json.Marshal(orderNode)
+	rabbitmq := RabbitMQ.NewSimpleRabbitMQ("doOrder")
+	rabbitmq.PublishSimple(order)
+	response = &api.OrderResponse{Message: "删除执行开始成功"}
 
 	return response, nil
 }

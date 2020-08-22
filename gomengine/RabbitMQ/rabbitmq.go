@@ -125,7 +125,7 @@ func (r *RabbitMQ) ConsumeSimple() {
 			fmt.Println(err)
 		}
 		//fmt.Println("-------------", node)
-		Engine.Match(order)
+		Engine.DoOrder(order)
 	}
 
 	//}()

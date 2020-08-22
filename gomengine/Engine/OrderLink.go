@@ -2,6 +2,7 @@ package Engine
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type NodeLink struct {
@@ -26,6 +27,7 @@ func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
 
 	node := &OrderNode{}
 	json.Unmarshal([]byte(res.Val()), &node)
+	nl.Current = node // 获取某个节点时，把此节点设置为当前节点
 
 	return node
 }
@@ -81,21 +83,12 @@ func (nl *NodeLink) GetLast() *OrderNode {
 	return order
 }
 
-func (nl *NodeLink) GetCurrent(nodename string) *OrderNode {
-	if nodename != "" {
-		node := nl.GetLinkNode(nl.Node.NodeName)
-		if node.Oid == "" {
-			return &OrderNode{}
-		}
-		nl.Current = node
-
-		return node
-	}
+func (nl *NodeLink) GetCurrent() *OrderNode {
 	return nl.Current
 }
 
 func (nl *NodeLink) GetPrev() *OrderNode {
-	current := nl.GetCurrent("")
+	current := nl.GetCurrent()
 	prevName := current.PrevNode
 	if prevName == "" {
 		return &OrderNode{}
@@ -104,14 +97,13 @@ func (nl *NodeLink) GetPrev() *OrderNode {
 	if node.Oid == "" {
 		return &OrderNode{}
 	}
-
-	nl.Current = node
+	//nl.Current = node //是否需要重置当前节点?
 
 	return node
 }
 
 func (nl *NodeLink) GetNext() *OrderNode {
-	current := nl.GetCurrent("")
+	current := nl.GetCurrent()
 	nextName := current.NextNode
 	if nextName == "" {
 		return &OrderNode{}
@@ -120,8 +112,7 @@ func (nl *NodeLink) GetNext() *OrderNode {
 	if node.Oid == "" {
 		return &OrderNode{}
 	}
-
-	nl.Current = node
+	//nl.Current = node //是否需要重置当前节点?
 
 	return node
 }
@@ -158,15 +149,18 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		nl.SetLinkNode(prev, prev.NodeName)
 	} else {
 		prev := nl.GetPrev()
+		current := nl.GetNext()
 		next := nl.GetNext()
+		fmt.Printf("删除时prev------：%#v\n", prev)
+		fmt.Printf("删除时next------：%#v\n", next)
 
 		if prev.Oid == "" && next.Oid == "" {
 			panic("expects relation node is not empty.")
 		}
+		redis.HDel(ctx, current.NodeLink, current.NodeName)
 
 		prev.NextNode = next.NodeName
 		next.PrevNode = prev.NodeName
-		redis.HDel(ctx, node.NodeLink, node.NodeName)
 		nl.SetLinkNode(prev, prev.NodeName)
 		nl.SetLinkNode(next, next.NodeName)
 	}
