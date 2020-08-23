@@ -8,11 +8,11 @@
 
 3. 生成gRPC接口定义文件 `protoc --go_out=plugins=grpc:. *.proto`
 
-4. 启动gRPC服务端，`go run main.go`
+4. 启动gRPC服务端：`go run main.go`
 
-5. 启动RabbitMQ消费端，`go run pushEngin.go`
+5. 启动RabbitMQ消费端，匹配并计算：`go run push_engine.go`
 
-6. 使用gRPC客户端脚本测试，`go run ordertest.go`
+6. 使用gRPC客户端脚本测试，下单：`go run doorder.go`，撤单：`go run delorder.go`
 
 ### 说明
 
