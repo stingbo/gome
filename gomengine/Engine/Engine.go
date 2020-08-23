@@ -33,18 +33,18 @@ func SetOrder(node OrderNode) bool {
 
 	pool.DeletePrePool()
 	depths := pool.GetReverseDepth()
-	//fmt.Printf("%#v\n", depths)
+	fmt.Printf("%#v\n", depths)
+	fmt.Printf("depths长度%#v\n", len(depths))
 	//fmt.Printf("%T\n", depths)
 
+	// 撮合计算逻辑
 	if len(depths) > 0 {
-		//fmt.Printf("depths长度%#v\n", len(depths))
 		node := Match(&node, depths)
+		fmt.Printf("匹配完之后的node--------%#v\n", node)
 		if node.Volume <= 0 {
 			return true
 		}
 	}
-
-	// 撮合计算逻辑
 	//fmt.Printf("%#v\n", node)
 	//fmt.Printf("%T\n", node)
 
@@ -83,11 +83,19 @@ func DeleteOrder(node OrderNode) bool {
 
 func Match(node *OrderNode, depths [][]string) *OrderNode {
 	for _, v := range depths {
+		fmt.Printf("匹配的价格信息--------%#v\n", v)
 		price, _ := strconv.ParseFloat(v[0], 64)
-		nodelink := node
+		nodelink := OrderNode{} //copy一个新的节点
+		nodelink = *node
 		nodelink.Price = price
-		link := NodeLink{Node: nodelink, Current: nodelink}
+		nodelink.SetDepthHashKey()
+		nodelink.SetNodeLink()
+		fmt.Printf("去使用的nodelink信息--------%#v\n", nodelink)
+		link := NodeLink{Node: &nodelink, Current: &nodelink} // 使用新的节点链去匹配计算
 		node = MatchOrder(node, &link)
+		if node.Volume <= 0 {
+			break
+		}
 	}
 
 	return node
@@ -95,6 +103,7 @@ func Match(node *OrderNode, depths [][]string) *OrderNode {
 
 func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 	matchNode := link.GetFirstNode()
+	fmt.Printf("第一个匹配的node--------%#v\n", matchNode)
 	if matchNode.Oid == "" {
 		return node
 	}
@@ -106,8 +115,8 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		fmt.Printf("撮合node------：%#v\n", node)
-		fmt.Printf("撮合match node------：%#v\n", matchNode)
+		fmt.Printf("撮合1node------：%#v\n", node)
+		fmt.Printf("撮合1match node------：%#v\n", matchNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 
@@ -119,19 +128,23 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		fmt.Printf("撮合node------：%#v\n", node)
-		fmt.Printf("撮合match node------：%#v\n", matchNode)
+		fmt.Printf("撮合2node------：%#v\n", node)
+		fmt.Printf("撮合2match node------：%#v\n", matchNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 	case diff < 0:
 		matchVolume := node.Volume
 		matchNode.Volume = matchNode.Volume - matchVolume
-		link.SetLinkNode(matchNode, matchNode.NodeLink)
-		DeletePoolMatchOrder(node)
+		link.SetLinkNode(matchNode, matchNode.NodeName)
+
+		updateNode := *matchNode // 更新委托池信息使用，不能直接使用matchNode，因为volume是剩余的，不是要减去的
+		updateNode.Volume = matchVolume
+		DeletePoolMatchOrder(&updateNode)
 		node.Volume = 0
 
-		fmt.Printf("撮合node------：%#v\n", node)
-		fmt.Printf("撮合match node------：%#v\n", matchNode)
+		fmt.Printf("撮合3node------：%#v\n", node)
+		fmt.Printf("撮合3match node------：%#v\n", matchNode)
+		fmt.Printf("撮合3update node------：%#v\n", updateNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 	}

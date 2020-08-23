@@ -41,13 +41,13 @@ func (nl *NodeLink) GetFirstNode() *OrderNode {
 		return &OrderNode{}
 	}
 
-	order := nl.GetLinkNode(res.Val())
-	if order.Uuid != "" {
-		return order
+	node := nl.GetLinkNode(res.Val())
+	if node.Uuid != "" {
+		return node
 	}
-	nl.Current = order
+	nl.Current = node
 
-	return order
+	return node
 }
 
 func (nl *NodeLink) SetLast() {
@@ -73,13 +73,13 @@ func (nl *NodeLink) GetLast() *OrderNode {
 		return &OrderNode{}
 	}
 
-	order := nl.GetLinkNode(res.Val())
-	if order.Uuid == "" {
-		return order
+	node := nl.GetLinkNode(res.Val())
+	if node.Uuid == "" {
+		return node
 	}
-	nl.Current = order
+	nl.Current = node
 
-	return order
+	return node
 }
 
 func (nl *NodeLink) GetCurrent() *OrderNode {
@@ -116,9 +116,9 @@ func (nl *NodeLink) GetNext() *OrderNode {
 	return node
 }
 
-func (nl *NodeLink) SetLinkNode(order *OrderNode, nodeName string) {
-	orderJson, _ := json.Marshal(order)
-	redis.HSet(ctx, nl.Node.NodeLink, nodeName, orderJson)
+func (nl *NodeLink) SetLinkNode(node *OrderNode, nodeName string) {
+	nodeJson, _ := json.Marshal(node)
+	redis.HSet(ctx, nl.Node.NodeLink, nodeName, nodeJson)
 }
 
 func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
