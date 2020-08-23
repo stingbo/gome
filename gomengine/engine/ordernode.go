@@ -14,7 +14,7 @@ type OrderNode struct {
 	Transaction int32   // 交易方向，buy/sale
 	Price       float64 // 交易价格
 	Volume      float64 // 交易数量
-	Accuracy    float64 // 计算精度
+	Accuracy    int // 计算精度
 	NodeName    string  // 节点
 	IsFirst     bool    // 是否是起始节点
 	IsLast      bool    // 是否是结束节点
@@ -74,11 +74,11 @@ func (node *OrderNode) SetTransaction(order api.OrderRequest) {
 }
 
 func (node *OrderNode) SetVolume(order api.OrderRequest) {
-	node.Volume = order.Volume * math.Pow(10, node.Accuracy)
+	node.Volume = order.Volume * math.Pow10(node.Accuracy)
 }
 
 func (node *OrderNode) SetPrice(order api.OrderRequest) {
-	node.Price = order.Price * math.Pow(10, node.Accuracy)
+	node.Price = order.Price * math.Pow10(node.Accuracy)
 }
 
 func (node *OrderNode) SetOrderHashKey() {
