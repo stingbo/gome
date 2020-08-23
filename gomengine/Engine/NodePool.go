@@ -1,12 +1,14 @@
 package Engine
 
 import (
+	"fmt"
 	redis2 "github.com/go-redis/redis/v8"
+	"gome/api"
 	"strconv"
 )
 
 type Pool struct {
-	Node OrderNode
+	Node *OrderNode
 }
 
 func (pl *Pool) SetPrePool() {
@@ -45,7 +47,7 @@ func (pl *Pool) SetDepthLink() bool {
 
 //从价格点对应的深度链删除
 func (pl *Pool) DeleteDepthLink() bool {
-	link := &NodeLink{Node: pl.Node, Current: &pl.Node}
+	link := &NodeLink{Node: pl.Node, Current: pl.Node}
 	current := link.GetCurrent()
 	if current.Oid == "" {
 		return false
@@ -78,4 +80,36 @@ func (pl *Pool) DeletePoolDepth() {
 	if volume <= 0 {
 		redis.ZRem(ctx, pl.Node.OrderListZsetKey, pl.Node.Price)
 	}
+}
+
+// 获取反向深度列表.
+func (pl *Pool) GetReverseDepth() [][]string {
+	var depths [][]string
+	price := strconv.FormatFloat(pl.Node.Price, 'f', -1, 64)
+	if api.TransactionType_value["SALE"] == pl.Node.Transaction {
+		rangeby := redis2.ZRangeBy{Min: price, Max: "+inf"}
+		res := redis.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
+		fmt.Println("------------", res)
+		prices := res.Val()
+		for k,v := range prices {
+			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			data := []string{v, volres.Val()}
+			depths = append(depths, data)
+			fmt.Println("buy取出的结果------------", k, v)
+		}
+	} else {
+		rangeby := redis2.ZRangeBy{Min: "-inf", Max: price}
+		res := redis.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
+		fmt.Println("------------", res)
+		prices := res.Val()
+		for k,v := range prices {
+			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			data := []string{v, volres.Val()}
+			depths = append(depths, data)
+
+			fmt.Println("sale取出的结果------------", k, v)
+		}
+	}
+
+	return depths
 }

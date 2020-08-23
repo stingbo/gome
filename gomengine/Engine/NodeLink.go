@@ -2,12 +2,11 @@ package Engine
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 type NodeLink struct {
 	Current *OrderNode
-	Node    OrderNode
+	Node    *OrderNode
 }
 
 func (nl *NodeLink) InitOrderLink() {
@@ -16,7 +15,7 @@ func (nl *NodeLink) InitOrderLink() {
 
 	nl.SetFristPointer(nl.Node.NodeName)
 	nl.SetLastPointer(nl.Node.NodeName)
-	nl.SetLinkNode(&nl.Node, nl.Node.NodeName)
+	nl.SetLinkNode(nl.Node, nl.Node.NodeName)
 }
 
 func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
@@ -61,7 +60,7 @@ func (nl *NodeLink) SetLast() {
 	nl.SetLastPointer(nl.Node.NodeName)
 
 	nl.Node.IsLast = true
-	nl.SetLinkNode(&nl.Node, nl.Node.NodeName)
+	nl.SetLinkNode(nl.Node, nl.Node.NodeName)
 }
 
 func (nl *NodeLink) SetLastPointer(nodename string) {
@@ -151,8 +150,8 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		prev := nl.GetPrev()
 		current := nl.GetNext()
 		next := nl.GetNext()
-		fmt.Printf("删除时prev------：%#v\n", prev)
-		fmt.Printf("删除时next------：%#v\n", next)
+		//fmt.Printf("删除时prev------：%#v\n", prev)
+		//fmt.Printf("删除时next------：%#v\n", next)
 
 		if prev.Oid == "" && next.Oid == "" {
 			panic("expects relation node is not empty.")

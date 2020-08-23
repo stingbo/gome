@@ -23,7 +23,8 @@ func main() {
 	// 一旦 gRPC channel 建立起来，我们需要一个客户端 存根 去执行 RPC
 	client := api.NewOrderClient(conn)
 
-	order := api.OrderRequest{Uuid: "3", Oid: "4", Symbol: "eth2usdt", Transaction: 1, Price: 0.5, Volume: 13}
+	// 0-buy,1-sale
+	order := api.OrderRequest{Uuid: "1", Oid: "4", Symbol: "eth2usdt", Transaction: 1, Price: 0.5, Volume: 2}
 	// 调用简单 RPC
 	resp, err := client.DoOrder(context.Background(), &order)
 	// 如果调用没有返回错误，那么我们就可以从服务器返回的第一个返回值中读到响应信息

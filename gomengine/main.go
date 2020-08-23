@@ -25,7 +25,7 @@ func (fd *Order) DoOrder(ctx context.Context, request *api.OrderRequest) (respon
 	orderNode := Engine.NewOrderNode(*request)
 	orderNode.Action = ADD
 	// 放入预热池
-	pool := Engine.Pool{Node: *orderNode}
+	pool := Engine.Pool{Node: orderNode}
 	pool.SetPrePool()
 
 	// 下单队列

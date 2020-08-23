@@ -28,6 +28,7 @@ type OrderNode struct {
 
 	// zset委托列表.
 	OrderListZsetKey string
+	OrderListZsetRKey string // 相反的委托
 
 	// hash委托深度.
 	OrderDepthHashKey   string
@@ -86,7 +87,13 @@ func (node *OrderNode) SetOrderHashKey() {
 }
 
 func (node *OrderNode) SetListZsetKey() {
-	node.OrderListZsetKey = node.Symbol + ":" + api.TransactionType_name[node.Transaction]
+	if api.TransactionType_value["SALE"] == node.Transaction {
+		node.OrderListZsetKey = node.Symbol + ":SALE"
+		node.OrderListZsetRKey = node.Symbol + ":BUY"
+	} else {
+		node.OrderListZsetKey = node.Symbol + ":BUY"
+		node.OrderListZsetRKey = node.Symbol + ":SALE"
+	}
 }
 
 func (node *OrderNode) SetDepthHashKey() {
