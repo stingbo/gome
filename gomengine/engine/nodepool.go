@@ -1,8 +1,8 @@
-package Engine
+package engine
 
 import (
 	"fmt"
-	redis2 "github.com/go-redis/redis/v8"
+	redis "github.com/go-redis/redis/v8"
 	"gome/api"
 	"strconv"
 )
@@ -12,18 +12,18 @@ type Pool struct {
 }
 
 func (pl *Pool) SetPrePool() {
-	redis.HSet(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField, 1)
+	cache.HSet(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField, 1)
 }
 
 func (pl *Pool) ExistsPrePool() bool {
-	exists := redis.HExists(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
+	exists := cache.HExists(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
 
 	return exists.Val()
 }
 
 func (pl *Pool) DeletePrePool() {
 	if true == pl.ExistsPrePool() {
-		redis.HDel(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
+		cache.HDel(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
 	}
 }
 
@@ -59,26 +59,26 @@ func (pl *Pool) DeleteDepthLink() bool {
 
 // 增加价格对应的委托量
 func (pl *Pool) SetPoolDepthVolume() {
-	redis.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, pl.Node.Volume)
+	cache.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, pl.Node.Volume)
 }
 
 // 减少价格对应的委托量
 func (pl *Pool) DeletePoolDepthVolume() {
-	redis.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, (pl.Node.Volume * -1))
+	cache.HIncrByFloat(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField, (pl.Node.Volume * -1))
 }
 
 // 设置价格列表
 func (pl *Pool) SetPoolDepth() {
-	redis.ZAdd(ctx, pl.Node.OrderListZsetKey, &redis2.Z{Score: pl.Node.Price, Member: pl.Node.Price})
+	cache.ZAdd(ctx, pl.Node.OrderListZsetKey, &redis.Z{Score: pl.Node.Price, Member: pl.Node.Price})
 }
 
 // 从价格列表删除
 func (pl *Pool) DeletePoolDepth() {
-	res := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField)
+	res := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashField)
 	volumeStr := res.Val()
 	volume, _ := strconv.ParseFloat(volumeStr, 64)
 	if volume <= 0 {
-		redis.ZRem(ctx, pl.Node.OrderListZsetKey, pl.Node.Price)
+		cache.ZRem(ctx, pl.Node.OrderListZsetKey, pl.Node.Price)
 	}
 }
 
@@ -87,23 +87,23 @@ func (pl *Pool) GetReverseDepth() [][]string {
 	var depths [][]string
 	price := strconv.FormatFloat(pl.Node.Price, 'f', -1, 64)
 	if api.TransactionType_value["SALE"] == pl.Node.Transaction {
-		rangeby := redis2.ZRangeBy{Min: price, Max: "+inf"}
-		res := redis.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
+		rangeby := redis.ZRangeBy{Min: price, Max: "+inf"}
+		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
 		fmt.Println("------------", res)
 		prices := res.Val()
 		for k, v := range prices {
-			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			volres := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
 			data := []string{v, volres.Val()}
 			depths = append(depths, data)
 			fmt.Println("buy取出的结果------------", k, v)
 		}
 	} else {
-		rangeby := redis2.ZRangeBy{Min: "-inf", Max: price}
-		res := redis.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
+		rangeby := redis.ZRangeBy{Min: "-inf", Max: price}
+		res := cache.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
 		fmt.Println("------------", res)
 		prices := res.Val()
 		for k, v := range prices {
-			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			volres := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
 			data := []string{v, volres.Val()}
 			depths = append(depths, data)
 

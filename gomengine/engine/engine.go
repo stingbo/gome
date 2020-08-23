@@ -1,9 +1,9 @@
-package Engine
+package engine
 
 import (
 	"context"
 	"fmt"
-	"gome/gomengine/Redis"
+	"gome/gomengine/redis"
 	"strconv"
 )
 
@@ -13,7 +13,7 @@ const (
 )
 
 var ctx = context.Background()
-var redis = Redis.NewRedisClient()
+var cache = redis.NewRedisClient()
 
 func DoOrder(node OrderNode) bool {
 	if node.Action == ADD {

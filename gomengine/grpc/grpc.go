@@ -1,4 +1,4 @@
-package gRPC
+package grpc
 
 import (
 	"github.com/unknwon/goconfig"

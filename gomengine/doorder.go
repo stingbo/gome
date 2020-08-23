@@ -24,7 +24,7 @@ func main() {
 	client := api.NewOrderClient(conn)
 
 	// 0-buy,1-sale
-	order := api.OrderRequest{Uuid: "1", Oid: "4", Symbol: "eth2usdt", Transaction: 1, Price: 0.5, Volume: 2}
+	order := api.OrderRequest{Uuid: "2", Oid: "11", Symbol: "eth2usdt", Transaction: 0, Price: 0.5, Volume: 30}
 	// 调用简单 RPC
 	resp, err := client.DoOrder(context.Background(), &order)
 	// 如果调用没有返回错误，那么我们就可以从服务器返回的第一个返回值中读到响应信息

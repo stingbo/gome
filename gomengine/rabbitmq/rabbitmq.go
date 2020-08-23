@@ -1,11 +1,11 @@
-package RabbitMQ
+package rabbitmq
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
 	"github.com/unknwon/goconfig"
-	"gome/gomengine/Engine"
+	"gome/gomengine/engine"
 	"log"
 )
 
@@ -119,13 +119,13 @@ func (r *RabbitMQ) ConsumeSimple() {
 	//go func() {
 	for d := range msgs {
 		//log.Printf("Received a message: %s", d.Body)
-		order := Engine.OrderNode{}
+		order := engine.OrderNode{}
 		err := json.Unmarshal(d.Body, &order)
 		if err != nil {
 			fmt.Println(err)
 		}
 		//fmt.Println("-------------", node)
-		Engine.DoOrder(order)
+		engine.DoOrder(order)
 	}
 
 	//}()

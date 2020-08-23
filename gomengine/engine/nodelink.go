@@ -1,4 +1,4 @@
-package Engine
+package engine
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ func (nl *NodeLink) InitOrderLink() {
 }
 
 func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
-	res := redis.HGet(ctx, nl.Node.NodeLink, nodeName)
+	res := cache.HGet(ctx, nl.Node.NodeLink, nodeName)
 	if res.Val() == "" {
 		return &OrderNode{}
 	}
@@ -32,11 +32,11 @@ func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
 }
 
 func (nl *NodeLink) SetFristPointer(nodename string) {
-	redis.HSet(ctx, nl.Node.NodeLink, "f", nodename)
+	cache.HSet(ctx, nl.Node.NodeLink, "f", nodename)
 }
 
 func (nl *NodeLink) GetFirstNode() *OrderNode {
-	res := redis.HGet(ctx, nl.Node.NodeLink, "f")
+	res := cache.HGet(ctx, nl.Node.NodeLink, "f")
 	if res.Val() == "" {
 		return &OrderNode{}
 	}
@@ -64,11 +64,11 @@ func (nl *NodeLink) SetLast() {
 }
 
 func (nl *NodeLink) SetLastPointer(nodename string) {
-	redis.HSet(ctx, nl.Node.NodeLink, "l", nodename)
+	cache.HSet(ctx, nl.Node.NodeLink, "l", nodename)
 }
 
 func (nl *NodeLink) GetLast() *OrderNode {
-	res := redis.HGet(ctx, nl.Node.NodeLink, "l")
+	res := cache.HGet(ctx, nl.Node.NodeLink, "l")
 	if res.Val() == "" {
 		return &OrderNode{}
 	}
@@ -118,20 +118,20 @@ func (nl *NodeLink) GetNext() *OrderNode {
 
 func (nl *NodeLink) SetLinkNode(node *OrderNode, nodeName string) {
 	nodeJson, _ := json.Marshal(node)
-	redis.HSet(ctx, nl.Node.NodeLink, nodeName, nodeJson)
+	cache.HSet(ctx, nl.Node.NodeLink, nodeName, nodeJson)
 }
 
 func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 	if node.IsFirst && node.IsLast {
-		redis.HDel(ctx, node.NodeLink, "f")
-		redis.HDel(ctx, node.NodeLink, "l")
-		redis.HDel(ctx, node.NodeLink, node.NodeName)
+		cache.HDel(ctx, node.NodeLink, "f")
+		cache.HDel(ctx, node.NodeLink, "l")
+		cache.HDel(ctx, node.NodeLink, node.NodeName)
 	} else if node.IsFirst && !node.IsLast {
 		next := nl.GetNext()
 		if next.Oid == "" {
 			panic("expects next node is not empty.")
 		}
-		redis.HDel(ctx, node.NodeLink, node.NodeName)
+		cache.HDel(ctx, node.NodeLink, node.NodeName)
 		next.IsFirst = true
 		next.PrevNode = ""
 		nl.SetFristPointer(next.NodeName)
@@ -141,7 +141,7 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		if prev.Oid == "" {
 			panic("expects prev node is not empty.")
 		}
-		redis.HDel(ctx, node.NodeLink, node.NodeName)
+		cache.HDel(ctx, node.NodeLink, node.NodeName)
 		prev.IsLast = true
 		prev.NextNode = ""
 		nl.SetLastPointer(prev.NodeName)
@@ -156,7 +156,7 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		if prev.Oid == "" && next.Oid == "" {
 			panic("expects relation node is not empty.")
 		}
-		redis.HDel(ctx, current.NodeLink, current.NodeName)
+		cache.HDel(ctx, current.NodeLink, current.NodeName)
 
 		prev.NextNode = next.NodeName
 		next.PrevNode = prev.NodeName
