@@ -91,7 +91,7 @@ func (pl *Pool) GetReverseDepth() [][]string {
 		res := redis.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
 		fmt.Println("------------", res)
 		prices := res.Val()
-		for k,v := range prices {
+		for k, v := range prices {
 			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
 			data := []string{v, volres.Val()}
 			depths = append(depths, data)
@@ -102,7 +102,7 @@ func (pl *Pool) GetReverseDepth() [][]string {
 		res := redis.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
 		fmt.Println("------------", res)
 		prices := res.Val()
-		for k,v := range prices {
+		for k, v := range prices {
 			volres := redis.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
 			data := []string{v, volres.Val()}
 			depths = append(depths, data)

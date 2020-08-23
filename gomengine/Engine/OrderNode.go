@@ -27,7 +27,7 @@ type OrderNode struct {
 	OrderHashField string
 
 	// zset委托列表.
-	OrderListZsetKey string
+	OrderListZsetKey  string
 	OrderListZsetRKey string // 相反的委托
 
 	// hash委托深度.
