@@ -3,7 +3,6 @@ package redis
 import (
 	"github.com/go-redis/redis/v8"
 	"gome/gomengine/util"
-	"gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 )

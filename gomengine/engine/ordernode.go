@@ -4,7 +4,6 @@ import (
 	"github.com/shopspring/decimal"
 	"gome/api"
 	"gome/gomengine/util"
-	"gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"math"

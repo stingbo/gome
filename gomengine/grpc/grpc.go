@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"gome/gomengine/util"
-	"gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"

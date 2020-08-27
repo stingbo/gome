@@ -6,7 +6,6 @@ import (
 	"github.com/streadway/amqp"
 	"gome/gomengine/engine"
 	"gome/gomengine/util"
-	"gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
