@@ -2,9 +2,9 @@
 
 ### 快速开始
 
-1. 使用docker部署环境，[库地址](https://github.com/stingbo/go_match_engine_docker)
+1. 使用docker一键部署环境，[库地址](https://github.com/stingbo/go_match_engine_docker)
 
-2. 复制并修改配置 `cd /go/src/gome/gomengine && copy config.ini.example config.ini`
+2. 复制并修改配置 `cd /go/src/gome/gomengine && copy config.yaml.example config.yaml`
 
 3. 生成gRPC接口定义文件 `protoc --go_out=plugins=grpc:. *.proto`
 
