@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/unknwon/goconfig"
 	"golang.org/x/net/context"
 	"gome/api"
+	"gome/gomengine/util"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"log"
 )
 
@@ -12,9 +14,11 @@ import (
 func main() {
 	// 为了调用服务方法，我们首先创建一个 gRPC channel 和服务器交互。
 	// 可以使用 DialOptions 在 grpc.Dial 中设置授权认证（如， TLS，GCE认证，JWT认证）
-	config, err := goconfig.LoadConfigFile("config.ini")
-	host, _ := config.GetValue("grpc", "host")
-	port, _ := config.GetValue("grpc", "port")
+	conf := &util.MeConfig{}
+	yamlFile, err := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(yamlFile, conf)
+	host := conf.GRPCConf.Host
+	port := conf.GRPCConf.Port
 	conn, err := grpc.Dial(host+":"+port, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalln("Can't connect: " + host + ":" + port)

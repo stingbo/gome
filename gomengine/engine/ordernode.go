@@ -1,9 +1,13 @@
 package engine
 
 import (
+	"github.com/shopspring/decimal"
 	"gome/api"
+	"gome/gomengine/util"
+	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"math"
-	"strconv"
 )
 
 type OrderNode struct {
@@ -54,7 +58,10 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 }
 
 func (node *OrderNode) SetAccuracy() {
-	node.Accuracy = 8
+	conf := &util.MeConfig{}
+	yamlFile, _ := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(yamlFile, conf)
+	node.Accuracy = conf.MeConf.Accuracy
 }
 
 func (node *OrderNode) SetUuid(order api.OrderRequest) {
@@ -74,11 +81,16 @@ func (node *OrderNode) SetTransaction(order api.OrderRequest) {
 }
 
 func (node *OrderNode) SetVolume(order api.OrderRequest) {
-	node.Volume = order.Volume * math.Pow10(node.Accuracy)
+	volume := decimal.NewFromFloat(order.Volume)
+	mul := decimal.NewFromFloat(math.Pow10(node.Accuracy))
+
+	node.Volume, _ = volume.Mul(mul).Float64()
 }
 
 func (node *OrderNode) SetPrice(order api.OrderRequest) {
-	node.Price = order.Price * math.Pow10(node.Accuracy)
+	volume := decimal.NewFromFloat(order.Price)
+	mul := decimal.NewFromFloat(math.Pow10(node.Accuracy))
+	node.Price, _ = volume.Mul(mul).Float64()
 }
 
 func (node *OrderNode) SetOrderHashKey() {
@@ -98,7 +110,8 @@ func (node *OrderNode) SetListZsetKey() {
 
 func (node *OrderNode) SetDepthHashKey() {
 	node.OrderDepthHashKey = node.Symbol + ":depth"
-	node.OrderDepthHashField = node.Symbol + ":depth:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
+	pricestr := decimal.NewFromFloat(node.Price).String()
+	node.OrderDepthHashField = node.Symbol + ":depth:" + pricestr
 }
 
 func (node *OrderNode) SetNodeName() {
@@ -106,5 +119,6 @@ func (node *OrderNode) SetNodeName() {
 }
 
 func (node *OrderNode) SetNodeLink() {
-	node.NodeLink = node.Symbol + ":link:" + strconv.FormatFloat(node.Price, 'f', -1, 64)
+	pricestr := decimal.NewFromFloat(node.Price).String()
+	node.NodeLink = node.Symbol + ":link:" + pricestr
 }

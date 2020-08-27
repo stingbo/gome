@@ -1,7 +1,10 @@
 package grpc
 
 import (
-	"github.com/unknwon/goconfig"
+	"gome/gomengine/util"
+	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"log"
 	"net"
 )
@@ -13,12 +16,11 @@ type gRPC struct {
 }
 
 func NewRpcListener() *gRPC {
-	config, err := goconfig.LoadConfigFile("config.ini")
-	host, _ := config.GetValue("grpc", "host")
-	port, _ := config.GetValue("grpc", "port")
-	if err != nil {
-		panic("配置读取失败")
-	}
+	conf := &util.MeConfig{}
+	yamlFile, err := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(yamlFile, conf)
+	host := conf.GRPCConf.Host
+	port := conf.GRPCConf.Port
 	RPCurl := host + ":" + port
 	gRPC := &gRPC{Protocol: "tcp", RPCurl: RPCurl}
 

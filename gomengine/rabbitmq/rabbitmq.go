@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
-	"github.com/unknwon/goconfig"
 	"gome/gomengine/engine"
+	"gome/gomengine/util"
+	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"log"
 )
 
@@ -19,14 +22,13 @@ type RabbitMQ struct {
 }
 
 func NewRabbitMq(queuename, exchage, key string) *RabbitMQ {
-	config, err := goconfig.LoadConfigFile("config.ini")
-	host, _ := config.GetValue("rabbitmq", "host")
-	port, _ := config.GetValue("rabbitmq", "port")
-	username, _ := config.GetValue("rabbitmq", "username")
-	password, _ := config.GetValue("rabbitmq", "password")
-	if err != nil {
-		panic("配置读取失败")
-	}
+	conf := &util.MeConfig{}
+	yamlFile, _ := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(yamlFile, conf)
+	host := conf.MQconf.Host
+	port := conf.MQconf.Port
+	username := conf.MQconf.Username
+	password := conf.MQconf.Password
 	// MQURL 格式 amqp://账号:密码@rabbitmq服务器地址:端口号/vhost
 	MQurl := "amqp://" + username + ":" + password + "@" + host + ":" + port + "/"
 
@@ -36,6 +38,7 @@ func NewRabbitMq(queuename, exchage, key string) *RabbitMQ {
 		Key:       key,
 		MQurl:     MQurl,
 	}
+	var err error
 	rabbitmq.conn, err = amqp.Dial(rabbitmq.MQurl)
 	rabbitmq.failOnErr(err, "连接MQ错误")
 
