@@ -1,10 +1,9 @@
-package rabbitmq
+package engine
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
-	"gome/gomengine/engine"
 	"gome/gomengine/util"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -63,7 +62,7 @@ func NewSimpleRabbitMQ(queuename string) *RabbitMQ {
 	return NewRabbitMq(queuename, "", "")
 }
 
-func (r *RabbitMQ) PublishSimple(message []byte) {
+func (r *RabbitMQ) PublishNewOrder(message []byte) {
 	//1. 申请队列，如果队列不存在会自动创建，如何存在则跳过创建
 	_, err := r.channel.QueueDeclare(
 		r.Queuename,
@@ -89,7 +88,7 @@ func (r *RabbitMQ) PublishSimple(message []byte) {
 	)
 }
 
-func (r *RabbitMQ) ConsumeSimple() {
+func (r *RabbitMQ) ConsumeNewOrder() {
 	_, err := r.channel.QueueDeclare(
 		r.Queuename,
 		false, // 是否持久化
@@ -121,13 +120,60 @@ func (r *RabbitMQ) ConsumeSimple() {
 	//go func() {
 	for d := range msgs {
 		//log.Printf("Received a message: %s", d.Body)
-		order := engine.OrderNode{}
+		order := OrderNode{}
 		err := json.Unmarshal(d.Body, &order)
 		if err != nil {
 			fmt.Println(err)
 		}
 		//fmt.Println("-------------", node)
-		engine.DoOrder(order)
+		DoOrder(order)
+	}
+
+	//}()
+	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	<-forever
+}
+
+func (r *RabbitMQ) ConsumeMatchOrder() {
+	_, err := r.channel.QueueDeclare(
+		r.Queuename,
+		false, // 是否持久化
+		false, // 是否自动删除
+		false, // 是否具有排他性？
+		false, // 是否阻塞
+		nil,   // 其它属性
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	msgs, err := r.channel.Consume(
+		r.Queuename,
+		"",    // 用来区分多个消费者
+		true,  // 是否自动应答
+		false, // 是否具有排他性
+		false, // 如果设置为true，表示不能将同一个connection中发送的消息传递给这个connection中的消费者
+		false, // 队列消费是否阻塞
+		nil,
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+	//redis := Redis.NewRedisClient()
+	forever := make(chan bool)
+	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	// 启用协程处理消息
+	//go func() {
+	for d := range msgs {
+		//log.Printf("Received a message: %s", d.Body)
+		order := MatchResult{}
+		err := json.Unmarshal(d.Body, &order)
+		if err != nil {
+			fmt.Println(err)
+		}
+		// your code......
+		util.Info.Printf("撮合结果------：%#v\n", order)
+		//fmt.Println("-------------", node)
 	}
 
 	//}()

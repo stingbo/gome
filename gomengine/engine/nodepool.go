@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	redis "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"gome/api"
 	"strconv"
 )

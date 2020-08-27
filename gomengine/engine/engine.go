@@ -2,9 +2,9 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"gome/gomengine/redis"
-	"gome/gomengine/util"
 	"strconv"
 )
 
@@ -15,6 +15,23 @@ const (
 
 var ctx = context.Background()
 var cache = redis.NewRedisClient()
+
+type MatchResult struct {
+	Node        OrderNode
+	MatchNode   OrderNode
+	MatchVolume float64
+}
+
+func PublishNewOrder(node OrderNode) bool {
+	order, err := json.Marshal(node)
+	memq := NewSimpleRabbitMQ("doOrder")
+	memq.PublishNewOrder(order)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
 
 func DoOrder(node OrderNode) bool {
 	if node.Action == ADD {
@@ -79,6 +96,12 @@ func DeleteOrder(node OrderNode) bool {
 	// 三，从节点链里删除
 	link.DeleteLinkNode(nodelink)
 
+	matchResult := MatchResult{Node: node, MatchNode: node, MatchVolume: 0}
+	match, _ := json.Marshal(matchResult)
+	// 撤单通知
+	memq := NewSimpleRabbitMQ("matchOrder")
+	memq.PublishNewOrder(match)
+
 	return true
 }
 
@@ -104,7 +127,6 @@ func Match(node *OrderNode, depths [][]string) *OrderNode {
 
 func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 	matchNode := link.GetFirstNode()
-	fmt.Printf("第一个匹配的node--------%#v\n", matchNode)
 	if matchNode.Oid == "" {
 		return node
 	}
@@ -116,12 +138,14 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		//fmt.Printf("撮合1node------：%#v\n", node)
-		//fmt.Printf("撮合1match node------：%#v\n", matchNode)
-		util.Info.Printf("撮合1node------：%#v\n", node)
-		util.Info.Printf("撮合1match node------：%#v\n", matchNode)
+		//util.Info.Printf("撮合1node------：%#v\n", node)
+		//util.Info.Printf("撮合1match node------：%#v\n", matchNode)
+
+		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
+		match, _ := json.Marshal(matchResult)
 		// 撮合成功通知
-		//event(MatchEvent(node, matchNode, matchVolume))
+		memq := NewSimpleRabbitMQ("matchOrder")
+		memq.PublishNewOrder(match)
 
 		// 递归匹配
 		MatchOrder(node, link)
@@ -131,12 +155,14 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		//fmt.Printf("撮合2node------：%#v\n", node)
-		//fmt.Printf("撮合2match node------：%#v\n", matchNode)
-		util.Info.Printf("撮合2node------：%#v\n", node)
-		util.Info.Printf("撮合2match node------：%#v\n", matchNode)
+		//util.Info.Printf("撮合2node------：%#v\n", node)
+		//util.Info.Printf("撮合2match node------：%#v\n", matchNode)
 		// 撮合成功通知
-		//event(MatchEvent(node, matchNode, matchVolume))
+		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
+		match, _ := json.Marshal(matchResult)
+		// 撮合成功通知
+		memq := NewSimpleRabbitMQ("matchOrder")
+		memq.PublishNewOrder(match)
 	case diff < 0:
 		matchVolume := node.Volume
 		matchNode.Volume = matchNode.Volume - matchVolume
@@ -147,14 +173,15 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		DeletePoolMatchOrder(&updateNode)
 		node.Volume = 0
 
-		//fmt.Printf("撮合3node------：%#v\n", node)
-		//fmt.Printf("撮合3match node------：%#v\n", matchNode)
-		//fmt.Printf("撮合3update node------：%#v\n", updateNode)
-		util.Info.Printf("撮合3node------：%#v\n", node)
-		util.Info.Printf("撮合3match node------：%#v\n", matchNode)
-		util.Info.Printf("撮合3update node------：%#v\n", updateNode)
+		//util.Info.Printf("撮合3node------：%#v\n", node)
+		//util.Info.Printf("撮合3match node------：%#v\n", matchNode)
+		//util.Info.Printf("撮合3update node------：%#v\n", updateNode)
 		// 撮合成功通知
-		//event(MatchEvent(node, matchNode, matchVolume))
+		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
+		match, _ := json.Marshal(matchResult)
+		// 撮合成功通知
+		memq := NewSimpleRabbitMQ("matchOrder")
+		memq.PublishNewOrder(match)
 	}
 
 	return node
