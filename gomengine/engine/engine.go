@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gome/gomengine/redis"
+	"gome/gomengine/util"
 	"strconv"
 )
 
@@ -115,8 +116,10 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		fmt.Printf("撮合1node------：%#v\n", node)
-		fmt.Printf("撮合1match node------：%#v\n", matchNode)
+		//fmt.Printf("撮合1node------：%#v\n", node)
+		//fmt.Printf("撮合1match node------：%#v\n", matchNode)
+		util.Info.Printf("撮合1node------：%#v\n", node)
+		util.Info.Printf("撮合1match node------：%#v\n", matchNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 
@@ -128,8 +131,10 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		fmt.Printf("撮合2node------：%#v\n", node)
-		fmt.Printf("撮合2match node------：%#v\n", matchNode)
+		//fmt.Printf("撮合2node------：%#v\n", node)
+		//fmt.Printf("撮合2match node------：%#v\n", matchNode)
+		util.Info.Printf("撮合2node------：%#v\n", node)
+		util.Info.Printf("撮合2match node------：%#v\n", matchNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 	case diff < 0:
@@ -142,9 +147,12 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		DeletePoolMatchOrder(&updateNode)
 		node.Volume = 0
 
-		fmt.Printf("撮合3node------：%#v\n", node)
-		fmt.Printf("撮合3match node------：%#v\n", matchNode)
-		fmt.Printf("撮合3update node------：%#v\n", updateNode)
+		//fmt.Printf("撮合3node------：%#v\n", node)
+		//fmt.Printf("撮合3match node------：%#v\n", matchNode)
+		//fmt.Printf("撮合3update node------：%#v\n", updateNode)
+		util.Info.Printf("撮合3node------：%#v\n", node)
+		util.Info.Printf("撮合3match node------：%#v\n", matchNode)
+		util.Info.Printf("撮合3update node------：%#v\n", updateNode)
 		// 撮合成功通知
 		//event(MatchEvent(node, matchNode, matchVolume))
 	}
