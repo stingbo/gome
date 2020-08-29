@@ -8,21 +8,26 @@ import (
 	"net"
 )
 
+var Conf *util.MeConfig
+
 type gRPC struct {
 	Listener net.Listener
 	Protocol string
 	RPCurl   string
 }
 
+func init() {
+	confFile, _ := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(confFile, &Conf)
+}
+
 func NewRpcListener() *gRPC {
-	conf := &util.MeConfig{}
-	yamlFile, err := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.GRPCConf.Host
-	port := conf.GRPCConf.Port
+	host := Conf.GRPCConf.Host
+	port := Conf.GRPCConf.Port
 	RPCurl := host + ":" + port
 	gRPC := &gRPC{Protocol: "tcp", RPCurl: RPCurl}
 
+	var err error
 	gRPC.Listener, err = net.Listen(gRPC.Protocol, gRPC.RPCurl)
 	if err != nil {
 		panic("监听失败")

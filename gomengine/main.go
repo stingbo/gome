@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	ADD int8 = 1
-	DEL int8 = 2
+	_ = iota
+	ADD
+	DEL
 )
 
 type Order struct{}

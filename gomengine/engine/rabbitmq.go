@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/streadway/amqp"
 	"gome/gomengine/util"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"log"
 )
 
@@ -20,13 +18,10 @@ type RabbitMQ struct {
 }
 
 func NewRabbitMq(queuename, exchage, key string) *RabbitMQ {
-	conf := &util.MeConfig{}
-	yamlFile, _ := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.MQconf.Host
-	port := conf.MQconf.Port
-	username := conf.MQconf.Username
-	password := conf.MQconf.Password
+	host := Conf.MQconf.Host
+	port := Conf.MQconf.Port
+	username := Conf.MQconf.Username
+	password := Conf.MQconf.Password
 	// MQURL 格式 amqp://账号:密码@rabbitmq服务器地址:端口号/vhost
 	MQurl := "amqp://" + username + ":" + password + "@" + host + ":" + port + "/"
 

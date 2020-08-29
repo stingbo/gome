@@ -5,21 +5,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"gome/gomengine/redis"
+	"gome/gomengine/util"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"strconv"
 )
 
 const (
-	ADD int8 = 1
-	DEL int8 = 2
+	_ = iota
+	ADD
+	DEL
 )
 
 var ctx = context.Background()
 var cache = redis.NewRedisClient()
+var Conf *util.MeConfig
 
 type MatchResult struct {
 	Node        OrderNode
 	MatchNode   OrderNode
 	MatchVolume float64
+}
+
+func init() {
+	confFile, _ := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(confFile, &Conf)
 }
 
 func PublishNewOrder(node OrderNode) bool {

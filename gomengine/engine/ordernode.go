@@ -3,9 +3,6 @@ package engine
 import (
 	"github.com/shopspring/decimal"
 	"gome/api"
-	"gome/gomengine/util"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"math"
 )
 
@@ -57,10 +54,7 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 }
 
 func (node *OrderNode) SetAccuracy() {
-	conf := &util.MeConfig{}
-	yamlFile, _ := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	node.Accuracy = conf.MeConf.Accuracy
+	node.Accuracy = Conf.MeConf.Accuracy
 }
 
 func (node *OrderNode) SetUuid(order api.OrderRequest) {

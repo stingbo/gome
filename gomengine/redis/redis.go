@@ -7,12 +7,16 @@ import (
 	"io/ioutil"
 )
 
+var Conf *util.MeConfig
+
+func init() {
+	confFile, _ := ioutil.ReadFile("config.yaml")
+	yaml.Unmarshal(confFile, &Conf)
+}
+
 func NewRedisClient() *redis.Client {
-	conf := &util.MeConfig{}
-	yamlFile, _ := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.CacheConf.Host
-	port := conf.CacheConf.Port
+	host := Conf.CacheConf.Host
+	port := Conf.CacheConf.Port
 	//password := conf.CacheConf.Password
 	cache := redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
