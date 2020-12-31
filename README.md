@@ -4,17 +4,17 @@
 
 1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**
 
-2. 复制并修改配置 `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
+2. 复制并修改配置: `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
 
-3. 生成gRPC接口定义文件 `protoc --go_out=plugins=grpc:. *.proto`
+3. 生成 gRPC 接口定义文件: `protoc --go_out=plugins=grpc:. *.proto`
 
-4. 启动gRPC服务端：`go run main.go`
+4. 启动 gRPC 服务端：`go run main.go`
 
-5. 启动RabbitMQ撮合消费端，匹配并计算：`go run consume_new_order.go`
+5. 启动 RabbitMQ 撮合消费端，匹配并计算：`go run consume_new_order.go`
 
-6. 使用gRPC客户端脚本测试，下单：`go run doorder.go`，撤单：`go run delorder.go`
+6. 使用 gRPC 客户端脚本测试，下单：`go run doorder.go`，撤单：`go run delorder.go`
 
-7. 启动RabbitMQ撮合结果消费端，持久化、更新数据库使用：`go run consume_match_order.go`
+7. 启动 RabbitMQ 撮合结果消费端，持久化、更新数据库使用：`go run consume_match_order.go`
 
 ### 说明
 
@@ -29,4 +29,5 @@
 
 ### 总结
 
-1. 正常来说，api的OrderRequest里，uuid与oid应该是具有全系统唯一性的标识，话说回来，这两者在系统里也不应该重复，我定义的是string类型，方便主键是非自增整型数据库使用
+1. 正常来说，api 的 OrderRequest 里，uuid 与 oid 应该是具有全系统唯一性的标识，话说回来，这两者在系统里也不应该重复，
+我定义的是 string 类型，方便主键是非自增整型数据库使用
