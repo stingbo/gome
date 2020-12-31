@@ -1,8 +1,8 @@
-## Golang+gRPC+ProtoBuf+RabbitMQ+Redis撮合引擎微服务
+## Golang+gRPC+ProtoBuf+RabbitMQ+Redis 撮合引擎微服务
 
 ### 快速开始
 
-1. 使用docker一键部署环境，[库地址](https://github.com/stingbo/go_match_engine_docker)
+1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**
 
 2. 复制并修改配置 `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
 
@@ -20,12 +20,13 @@
 
 * doOrder 是下单队列，撮合引擎会消耗此队列，matchOrder 是撮合成交结果队列，消耗此队列并更新数据库，持久化
 
-* 此微服务的的具体实现思想与数据结构设计可以查看[基于Laravel的撮合服务](https://github.com/stingbo/mengine)项目
+* 此微服务的的具体实现思想与数据结构设计可以查看 [基于Laravel的撮合服务](https://github.com/stingbo/mengine) 项目
 
-* 本项目就是在我之前的项目基础上，队列使用RabbitMQ中间件代替，Redis只作缓存使用，再使用Golang与gRPC来实现微服务化
+* 本项目就是在我之前的项目基础上，队列使用 RabbitMQ 中间件代替，Redis 只作缓存使用，再使用 Golang 与 gRPC 来实现微服务化
 
-* 这样可以不用依赖其他环境，使用docker跑起环境后，其他项目对接使用即可
+* 这样可以不用依赖其他环境，使用 docker 跑起环境后，其他项目对接使用即可，如：
+    - [PHP 对接](https://github.com/stingbo/php-gome)
 
-### 注意
+### 总结
 
 1. 正常来说，api的OrderRequest里，uuid与oid应该是具有全系统唯一性的标识，话说回来，这两者在系统里也不应该重复，我定义的是string类型，方便主键是非自增整型数据库使用
