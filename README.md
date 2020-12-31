@@ -20,7 +20,7 @@
 
 * doOrder 是下单队列，撮合引擎会消耗此队列，matchOrder 是撮合成交结果队列，消耗此队列并更新数据库，持久化
 
-* 此微服务的的具体实现思想与数据结构设计可以查看 [基于Laravel的撮合服务](https://github.com/stingbo/mengine) 项目
+* 此微服务的的具体实现思想与数据结构设计可以查看 **[基于Laravel的撮合服务](https://github.com/stingbo/mengine)** 项目
 
 * 本项目就是在我之前的项目基础上，队列使用 RabbitMQ 中间件代替，Redis 只作缓存使用，再使用 Golang 与 gRPC 来实现微服务化
 
