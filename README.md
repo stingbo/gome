@@ -25,7 +25,7 @@
 * 本项目就是在我之前的项目基础上，队列使用 RabbitMQ 中间件代替，Redis 只作缓存使用，再使用 Golang 与 gRPC 来实现微服务化
 
 * 这样可以不用依赖其他环境，使用 docker 跑起环境后，其他项目对接使用即可，如：
-    - [PHP 对接](https://github.com/stingbo/php-gome)
+    - [PHP 客户端](https://github.com/stingbo/php-gome)，composer 安装，开箱即用
 
 ### 总结
 
