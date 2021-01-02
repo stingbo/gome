@@ -14,7 +14,7 @@ type OrderNode struct {
 	Transaction int32   // 交易方向，buy/sale
 	Price       float64 // 交易价格
 	Volume      float64 // 交易数量
-	Accuracy    int // 计算精度
+	Accuracy    int     // 计算精度
 	NodeName    string  // 节点
 	IsFirst     bool    // 是否是起始节点
 	IsLast      bool    // 是否是结束节点
@@ -26,7 +26,7 @@ type OrderNode struct {
 	OrderHashKey   string
 	OrderHashField string
 
-	// zset委托列表.
+	// 有序集合委托列表.
 	OrderListZsetKey  string
 	OrderListZsetRKey string // 相反的委托
 
@@ -103,8 +103,8 @@ func (node *OrderNode) SetListZsetKey() {
 
 func (node *OrderNode) SetDepthHashKey() {
 	node.OrderDepthHashKey = node.Symbol + ":depth"
-	pricestr := decimal.NewFromFloat(node.Price).String()
-	node.OrderDepthHashField = node.Symbol + ":depth:" + pricestr
+	priceStr := decimal.NewFromFloat(node.Price).String()
+	node.OrderDepthHashField = node.Symbol + ":depth:" + priceStr
 }
 
 func (node *OrderNode) SetNodeName() {
@@ -112,6 +112,6 @@ func (node *OrderNode) SetNodeName() {
 }
 
 func (node *OrderNode) SetNodeLink() {
-	pricestr := decimal.NewFromFloat(node.Price).String()
-	node.NodeLink = node.Symbol + ":link:" + pricestr
+	priceStr := decimal.NewFromFloat(node.Price).String()
+	node.NodeLink = node.Symbol + ":link:" + priceStr
 }

@@ -150,8 +150,6 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		prev := nl.GetPrev()
 		current := nl.GetNext()
 		next := nl.GetNext()
-		//fmt.Printf("删除时prev------：%#v\n", prev)
-		//fmt.Printf("删除时next------：%#v\n", next)
 
 		if prev.Oid == "" && next.Oid == "" {
 			panic("expects relation node is not empty.")
