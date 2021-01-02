@@ -17,7 +17,7 @@ type RabbitMQ struct {
 	MQurl     string
 }
 
-func NewRabbitMq(queuename, exchage, key string) *RabbitMQ {
+func NewRabbitMq(queueName, exchage, key string) *RabbitMQ {
 	host := Conf.MQconf.Host
 	port := Conf.MQconf.Port
 	username := Conf.MQconf.Username
@@ -25,20 +25,20 @@ func NewRabbitMq(queuename, exchage, key string) *RabbitMQ {
 	// MQURL 格式 amqp://账号:密码@rabbitmq服务器地址:端口号/vhost
 	MQurl := "amqp://" + username + ":" + password + "@" + host + ":" + port + "/"
 
-	rabbitmq := &RabbitMQ{
-		Queuename: queuename,
+	rabbitMq := &RabbitMQ{
+		Queuename: queueName,
 		Exchange:  exchage,
 		Key:       key,
 		MQurl:     MQurl,
 	}
 	var err error
-	rabbitmq.conn, err = amqp.Dial(rabbitmq.MQurl)
-	rabbitmq.failOnErr(err, "连接MQ错误")
+	rabbitMq.conn, err = amqp.Dial(rabbitMq.MQurl)
+	rabbitMq.failOnErr(err, "连接MQ错误")
 
-	rabbitmq.channel, err = rabbitmq.conn.Channel()
-	rabbitmq.failOnErr(err, "获取channel失败")
+	rabbitMq.channel, err = rabbitMq.conn.Channel()
+	rabbitMq.failOnErr(err, "获取channel失败")
 
-	return rabbitmq
+	return rabbitMq
 }
 
 func (r *RabbitMQ) failOnErr(err error, message string) {
@@ -53,8 +53,8 @@ func (r *RabbitMQ) Destory() {
 	_ = r.conn.Close()
 }
 
-func NewSimpleRabbitMQ(queuename string) *RabbitMQ {
-	return NewRabbitMq(queuename, "", "")
+func NewSimpleRabbitMQ(queueName string) *RabbitMQ {
+	return NewRabbitMq(queueName, "", "")
 }
 
 func (r *RabbitMQ) PublishNewOrder(message []byte) {
@@ -96,7 +96,7 @@ func (r *RabbitMQ) ConsumeNewOrder() {
 		fmt.Println(err)
 	}
 
-	msgs, err := r.channel.Consume(
+	messages, err := r.channel.Consume(
 		r.Queuename,
 		"",    // 用来区分多个消费者
 		true,  // 是否自动应答
@@ -108,24 +108,29 @@ func (r *RabbitMQ) ConsumeNewOrder() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	//redis := Redis.NewRedisClient()
+
 	forever := make(chan bool)
-	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	if Debug {
+		log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	}
 	// 启用协程处理消息
 	//go func() {
-	for d := range msgs {
-		//log.Printf("Received a message: %s", d.Body)
+	for d := range messages {
 		order := OrderNode{}
 		err := json.Unmarshal(d.Body, &order)
 		if err != nil {
 			fmt.Println(err)
 		}
-		//fmt.Println("-------------", node)
+		if Debug {
+			fmt.Printf("来源数据----------:%#v\n", order)
+		}
 		DoOrder(order)
 	}
 
 	//}()
-	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	if Debug {
+		log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	}
 	<-forever
 }
 
@@ -142,7 +147,7 @@ func (r *RabbitMQ) ConsumeMatchOrder() {
 		fmt.Println(err)
 	}
 
-	msgs, err := r.channel.Consume(
+	messages, err := r.channel.Consume(
 		r.Queuename,
 		"",    // 用来区分多个消费者
 		true,  // 是否自动应答
@@ -154,24 +159,28 @@ func (r *RabbitMQ) ConsumeMatchOrder() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	//redis := Redis.NewRedisClient()
+
+
 	forever := make(chan bool)
-	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	if Debug {
+		log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	}
 	// 启用协程处理消息
 	//go func() {
-	for d := range msgs {
-		//log.Printf("Received a message: %s", d.Body)
+	for d := range messages {
 		order := MatchResult{}
 		err := json.Unmarshal(d.Body, &order)
 		if err != nil {
 			fmt.Println(err)
 		}
-		// your code......
-		util.Info.Printf("撮合结果------：%#v\n", order)
-		//fmt.Println("-------------", node)
+		if Debug {
+			util.Info.Printf("撮合结果------：%#v\n", order)
+		}
 	}
 
 	//}()
-	log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	if Debug {
+		log.Printf("[*] Waiting for message, To exit press CTRL+C")
+	}
 	<-forever
 }

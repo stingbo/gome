@@ -1,5 +1,5 @@
-DEBUG: true
-LOG_LEVEL: debug
+Debug: true
+LogLevel: debug
 
 grpc:
   host: gome

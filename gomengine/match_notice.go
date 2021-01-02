@@ -17,7 +17,7 @@ func main() {
 			if symbol == "" {
 				return errors.New("请输入需要消费的队列名称")
 			}
-			mq := engine.NewSimpleRabbitMQ(symbol)
+			mq := engine.NewSimpleRabbitMQ("notice:"+symbol)
 			mq.ConsumeMatchOrder()
 
 			return nil

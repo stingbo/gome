@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"fmt"
 	"github.com/go-redis/redis/v8"
 	"gome/api"
 	"strconv"
@@ -87,27 +86,22 @@ func (pl *Pool) GetReverseDepth() [][]string {
 	var depths [][]string
 	price := strconv.FormatFloat(pl.Node.Price, 'f', -1, 64)
 	if api.TransactionType_value["SALE"] == pl.Node.Transaction {
-		rangeby := redis.ZRangeBy{Min: price, Max: "+inf"}
-		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
-		fmt.Println("------------", res)
+		rangeBy := redis.ZRangeBy{Min: price, Max: "+inf"}
+		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeBy)
 		prices := res.Val()
-		for k, v := range prices {
-			volres := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
-			data := []string{v, volres.Val()}
+		for _, v := range prices {
+			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			data := []string{v, vols.Val()}
 			depths = append(depths, data)
-			fmt.Println("buy取出的结果------------", k, v)
 		}
 	} else {
-		rangeby := redis.ZRangeBy{Min: "-inf", Max: price}
-		res := cache.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeby)
-		fmt.Println("------------", res)
+		rangeBy := redis.ZRangeBy{Min: "-inf", Max: price}
+		res := cache.ZRangeByScore(ctx, pl.Node.OrderListZsetRKey, &rangeBy)
 		prices := res.Val()
-		for k, v := range prices {
-			volres := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
-			data := []string{v, volres.Val()}
+		for _, v := range prices {
+			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
+			data := []string{v, vols.Val()}
 			depths = append(depths, data)
-
-			fmt.Println("sale取出的结果------------", k, v)
 		}
 	}
 

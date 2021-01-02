@@ -1,10 +1,12 @@
 package util
 
 type MeConfig struct {
-	MQconf RabbitMQ `yaml:"rabbitmq"`
-	CacheConf Cache `yaml:"redis"`
-	GRPCConf GRPC `yaml:"grpc"`
-	MeConf Mengine `yaml:"gomengine"`
+	Debug     bool     `yaml:"Debug"`
+	LogLevel  string   `yaml:"LogLevel"`
+	MQconf    RabbitMQ `yaml:"rabbitmq"`
+	CacheConf Cache    `yaml:"redis"`
+	GRPCConf  GRPC     `yaml:"grpc"`
+	MeConf    Mengine  `yaml:"gomengine"`
 }
 
 type Cache struct {
