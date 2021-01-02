@@ -1,3 +1,6 @@
+DEBUG: true
+LOG_LEVEL: debug
+
 grpc:
   host: gome
   port: 8088
@@ -22,4 +25,3 @@ mysql:
 
 gomengine:
   accuracy: 8 #计算精度
-
