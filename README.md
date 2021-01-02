@@ -8,7 +8,7 @@
 
 ## 快速开始
 
-1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome base`
+1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome bash`
 
 2. 复制并修改配置: `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
 
