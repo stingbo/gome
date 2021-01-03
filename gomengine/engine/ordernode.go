@@ -27,8 +27,8 @@ type OrderNode struct {
 	OrderHashField string
 
 	// 有序集合委托列表.
-	OrderListZsetKey  string
-	OrderListZsetRKey string // 相反的委托
+	OrderListSortSetKey  string
+	OrderListSortSetRKey string // 相反的委托
 
 	// hash委托深度.
 	OrderDepthHashKey   string
@@ -45,7 +45,7 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 	node.SetVolume(order)
 	node.SetPrice(order)
 	node.SetOrderHashKey()
-	node.SetListZsetKey()
+	node.SetListSortSetKey()
 	node.SetDepthHashKey()
 	node.SetNodeName()
 	node.SetNodeLink()
@@ -91,13 +91,13 @@ func (node *OrderNode) SetOrderHashKey() {
 	node.OrderHashField = node.Symbol + ":" + node.Uuid + ":" + node.Oid
 }
 
-func (node *OrderNode) SetListZsetKey() {
+func (node *OrderNode) SetListSortSetKey() {
 	if api.TransactionType_value["SALE"] == node.Transaction {
-		node.OrderListZsetKey = node.Symbol + ":SALE"
-		node.OrderListZsetRKey = node.Symbol + ":BUY"
+		node.OrderListSortSetKey = node.Symbol + ":SALE"
+		node.OrderListSortSetRKey = node.Symbol + ":BUY"
 	} else {
-		node.OrderListZsetKey = node.Symbol + ":BUY"
-		node.OrderListZsetRKey = node.Symbol + ":SALE"
+		node.OrderListSortSetKey = node.Symbol + ":BUY"
+		node.OrderListSortSetRKey = node.Symbol + ":SALE"
 	}
 }
 

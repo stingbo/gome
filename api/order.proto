@@ -1,29 +1,29 @@
 syntax = "proto3";
-package api;
+option go_package = ".;api";
 
 enum TransactionType {
-    BUY = 0;
-    SALE = 1;
+  BUY = 0;
+  SALE = 1;
 }
 
 //定义请求结构
 message OrderRequest {
-    string uuid = 1; // 用户唯一标识
-    string oid = 2; // 订单唯一标识
-    string symbol = 3; // 交易对
-    TransactionType transaction = 4; // 交易方向，buy/sale
-    double price = 5; // 交易价格
-    double volume = 6; // 交易数量
+  string uuid = 1; // 用户唯一标识
+  string oid = 2; // 订单唯一标识
+  string symbol = 3; // 交易对
+  TransactionType transaction = 4; // 交易方向，buy/sale
+  double price = 5; // 交易价格
+  double volume = 6; // 交易数量
 }
 
 //定义响应结构
 message OrderResponse {
-    int32 code = 1;
-    string message = 2;
+  int32 code = 1;
+  string message = 2;
 }
 
 //定义下单服务
 service Order {
-    rpc DoOrder(OrderRequest) returns (OrderResponse){}
-    rpc DeleteOrder(OrderRequest) returns (OrderResponse){}
+  rpc DoOrder(OrderRequest) returns (OrderResponse){}
+  rpc DeleteOrder(OrderRequest) returns (OrderResponse){}
 }

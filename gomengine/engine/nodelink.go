@@ -13,7 +13,7 @@ func (nl *NodeLink) InitOrderLink() {
 	nl.Node.IsFirst = true
 	nl.Node.IsLast = true
 
-	nl.SetFristPointer(nl.Node.NodeName)
+	nl.SetFirstPointer(nl.Node.NodeName)
 	nl.SetLastPointer(nl.Node.NodeName)
 	nl.SetLinkNode(nl.Node, nl.Node.NodeName)
 }
@@ -31,7 +31,7 @@ func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
 	return node
 }
 
-func (nl *NodeLink) SetFristPointer(nodename string) {
+func (nl *NodeLink) SetFirstPointer(nodename string) {
 	cache.HSet(ctx, nl.Node.NodeLink, "f", nodename)
 }
 
@@ -134,7 +134,7 @@ func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
 		cache.HDel(ctx, node.NodeLink, node.NodeName)
 		next.IsFirst = true
 		next.PrevNode = ""
-		nl.SetFristPointer(next.NodeName)
+		nl.SetFirstPointer(next.NodeName)
 		nl.SetLinkNode(next, next.NodeName)
 	} else if !node.IsFirst && node.IsLast {
 		prev := nl.GetPrev()
