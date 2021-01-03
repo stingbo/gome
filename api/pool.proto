@@ -1,0 +1,29 @@
+syntax = "proto3";
+option go_package = ".;api";
+
+message DepthRequest {
+  int64 offset = 1; // 偏移量
+  int64 count = 2; // 查询条数
+  enum DepthType {
+    BUY = 0; // 只获取买方深度
+    SALE = 1; // 只获取卖方深度
+    DOUBLE_SIDE = 2; // 同时获取买卖的深度，待实现
+  }
+  string symbol = 3; // 交易对
+  DepthType transaction = 4; // 交易方向
+}
+
+message Depth {
+  double p = 1;
+  double v = 2;
+}
+message DepthResponse {
+  int32 code = 1;
+  string message = 2;
+  int64 total = 3; // 总量
+  repeated Depth data = 4;
+}
+
+service Pool {
+  rpc GetDepth(DepthRequest) returns (DepthResponse){}
+}
