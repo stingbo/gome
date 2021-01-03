@@ -10,9 +10,9 @@
 
 1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome bash`
 
-2. 复制并修改配置: `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
+2. 进入 api 接口定义目录，生成 gRPC 接口定义文件: `cd /go/src/gome/api && protoc --go_out=plugins=grpc:. *.proto`
 
-3. 生成 gRPC 接口定义文件: `protoc --go_out=plugins=grpc:. *.proto`
+3. 进入项目目录，复制并修改配置: `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
 
 4. 启动 gRPC 服务端：`go run main.go`
 
@@ -20,9 +20,30 @@
 
 6. 启动脚本消费撮合结果 RabbitMQ 队列：`go run match_notice.go symbol`.
 
-7. 使用 gRPC 客户端脚本测试，下单：`go run doorder.go`，撤单：`go run delorder.go`
-
 ## 说明
+
+* gome 目录说明：
+    > api，RPC 接口定义目录，使用 ProtoBuf 3 版本
+
+    > gomengine，源代码目录
+        - engine，撮合引擎实现逻辑目录
+
+        - grpc，gRPC服务脚本
+
+        - redis，redis客户端
+
+        - util，工具脚本目录
+
+        - main.go 入口文件
+
+        - match.go 撮合脚本
+
+        - match_notice.go 撮合结果消费脚本
+
+        - test.go 测试脚本，命令如下：
+            1. 下单:`go run test.go doOrder`
+            2. 撤单:`go run test.go delOrder`
+            3. 获取交易对深度:`go run test.go getDepth symbol transaction`
 
 * gome 会使用 symbol 名作为下单队列，撮合引擎会消耗此队列，撮合成交结果会 push 到 notice:+symbol 作为名称的队列，如 notice:btc2usdt
 
@@ -39,6 +60,6 @@
 
 ## 总结
 
-1. 如果使用的 docker 环境，需要进入 gome 容器执行对应的操作，或者使用 Supervisor 在启动容器时自动执行
+1. 如果使用的 docker 环境，需要进入 gome 容器执行对应的操作，或者使用 Supervisor 在启动容器时自动启动相关脚本
 
 1. 进入 rabbitmq 容器，`docker exec -it rabbitmq bash`，查看现有队列：`rabbitmqctl list_queues`，删除队列：`rabbitmqctl delete_queue queuename`
