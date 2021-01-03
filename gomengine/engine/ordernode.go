@@ -45,7 +45,7 @@ func NewOrderNode(order api.OrderRequest) *OrderNode {
 	node.SetVolume(order)
 	node.SetPrice(order)
 	node.SetOrderHashKey()
-	node.SetListZsetKey()
+	node.SetListSortSetKey()
 	node.SetDepthHashKey()
 	node.SetNodeName()
 	node.SetNodeLink()
@@ -91,7 +91,7 @@ func (node *OrderNode) SetOrderHashKey() {
 	node.OrderHashField = node.Symbol + ":" + node.Uuid + ":" + node.Oid
 }
 
-func (node *OrderNode) SetListZsetKey() {
+func (node *OrderNode) SetListSortSetKey() {
 	if api.TransactionType_value["SALE"] == node.Transaction {
 		node.OrderListSortSetKey = node.Symbol + ":SALE"
 		node.OrderListSortSetRKey = node.Symbol + ":BUY"

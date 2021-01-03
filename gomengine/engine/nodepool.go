@@ -81,6 +81,29 @@ func (pl *Pool) DeletePoolDepth() {
 	}
 }
 
+// 获取深度列表.
+func (pl *Pool) GetDepth(offset int64, count int64) [][]string {
+	var depths [][]string
+	// 偏移量只能从0开始
+	if offset < 0 {
+		offset = 0
+	}
+	// 每次获取1~100条数据
+	if count <= 0 || count > 100 {
+		count = 20
+	}
+	rangeBy := redis.ZRangeBy{Min: "-inf", Max: "+inf", Offset: offset, Count: count}
+	res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetKey, &rangeBy)
+	prices := res.Val()
+	for _, p := range prices {
+		vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
+		data := []string{p, vols.Val()}
+		depths = append(depths, data)
+	}
+
+	return depths
+}
+
 // 获取反向深度列表.
 func (pl *Pool) GetReverseDepth() [][]string {
 	var depths [][]string
@@ -89,18 +112,18 @@ func (pl *Pool) GetReverseDepth() [][]string {
 		rangeBy := redis.ZRangeBy{Min: price, Max: "+inf"}
 		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetRKey, &rangeBy)
 		prices := res.Val()
-		for _, v := range prices {
-			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
-			data := []string{v, vols.Val()}
+		for _, p := range prices {
+			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
+			data := []string{p, vols.Val()}
 			depths = append(depths, data)
 		}
 	} else {
 		rangeBy := redis.ZRangeBy{Min: "-inf", Max: price}
 		res := cache.ZRangeByScore(ctx, pl.Node.OrderListSortSetRKey, &rangeBy)
 		prices := res.Val()
-		for _, v := range prices {
-			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+v)
-			data := []string{v, vols.Val()}
+		for _, p := range prices {
+			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
+			data := []string{p, vols.Val()}
 			depths = append(depths, data)
 		}
 	}
