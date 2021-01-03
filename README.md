@@ -26,6 +26,7 @@
     > api，RPC 接口定义目录，使用 ProtoBuf 3 版本
 
     > gomengine，源代码目录
+
         - engine，撮合引擎实现逻辑目录
 
         - grpc，gRPC服务脚本
