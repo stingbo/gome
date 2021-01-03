@@ -1,4 +1,4 @@
-## Goem 高性能撮合引擎微服务
+## Gome 高性能撮合引擎微服务
 
 - 使用 Golang 做计算，gRPC 做服务，ProtoBuf 做数据交换，RabbitMQ 做队列，Redis 做缓存实现的高性能撮合引擎微服务
 
