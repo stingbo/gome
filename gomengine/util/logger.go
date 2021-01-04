@@ -4,16 +4,21 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 )
 
 var (
 	Info *log.Logger
 	Error *log.Logger
 )
+const (
+	timeFormat = "2006-01-02 15:04:05"
+)
 
 func init() {
 	//日志输出文件
-	file, err := os.OpenFile("order.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	logFileName := "./logs/order-"+time.Now().Format(timeFormat)+".log"
+	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatalln("Failed to open error logger file:", err)
 	}

@@ -173,7 +173,7 @@ func (r *RabbitMQ) ConsumeMatchOrder() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		if Debug {
+		if LogLevel == "debug" {
 			util.Info.Printf("撮合结果------：%#v\n", order)
 		}
 	}

@@ -9,24 +9,30 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"strconv"
+	"time"
 )
 
 const (
 	_ = iota
 	ADD
 	DEL
+	timeFormat = "2006-01-02 15:04:05"
 )
 
-var ctx = context.Background()
-var cache = redis.NewRedisClient()
-var Conf *util.MeConfig
-var Debug bool
-var LogLevel string
+var (
+	ctx = context.Background()
+	cache = redis.NewRedisClient()
+	Conf *util.MeConfig
+	Debug bool
+	LogLevel string
+)
 
 type MatchResult struct {
+	Action      int8    // 通知类型，1-match;2-del
 	Node        OrderNode
 	MatchNode   OrderNode
 	MatchVolume float64
+	MatchTime   string
 }
 
 func init() {
@@ -125,9 +131,15 @@ func DeleteOrder(node OrderNode) bool {
 	// 三，从节点链里删除
 	link.DeleteLinkNode(nodeLink)
 
-	matchResult := MatchResult{Node: node, MatchNode: node, MatchVolume: 0}
-	match, _ := json.Marshal(matchResult)
 	// 撤单通知
+	matchResult := MatchResult{
+		Action: DEL,
+		Node: node,
+		MatchNode: node,
+		MatchVolume: 0,
+		MatchTime: time.Now().Format(timeFormat),
+	}
+	match, _ := json.Marshal(matchResult)
 	mq := NewSimpleRabbitMQ(noticeSymbol)
 	mq.PublishNewOrder(match)
 
@@ -171,10 +183,15 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		link.DeleteLinkNode(matchNode)
 		DeletePoolMatchOrder(matchNode)
 
-		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
-		match, _ := json.Marshal(matchResult)
-
 		// 撮合成功通知
+		matchResult := MatchResult{
+			Action: ADD,
+			Node: *node,
+			MatchNode: *matchNode,
+			MatchVolume: matchVolume,
+			MatchTime: time.Now().Format(timeFormat),
+		}
+		match, _ := json.Marshal(matchResult)
 		mq := NewSimpleRabbitMQ(noticeSymbol)
 		mq.PublishNewOrder(match)
 
@@ -187,10 +204,14 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		DeletePoolMatchOrder(matchNode)
 
 		// 撮合成功通知
-		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
+		matchResult := MatchResult{
+			Action: ADD,
+			Node: *node,
+			MatchNode: *matchNode,
+			MatchVolume: matchVolume,
+			MatchTime: time.Now().Format(timeFormat),
+		}
 		match, _ := json.Marshal(matchResult)
-
-		// 撮合成功通知
 		mq := NewSimpleRabbitMQ(noticeSymbol)
 		mq.PublishNewOrder(match)
 	case diff < 0:
@@ -204,10 +225,14 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 		node.Volume = 0
 
 		// 撮合成功通知
-		matchResult := MatchResult{Node: *node, MatchNode: *matchNode, MatchVolume: matchVolume}
+		matchResult := MatchResult{
+			Action: ADD,
+			Node: *node,
+			MatchNode: *matchNode,
+			MatchVolume: matchVolume,
+			MatchTime: time.Now().Format(timeFormat),
+		}
 		match, _ := json.Marshal(matchResult)
-
-		// 撮合成功通知
 		mq := NewSimpleRabbitMQ(noticeSymbol)
 		mq.PublishNewOrder(match)
 	}
