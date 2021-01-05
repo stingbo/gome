@@ -12,7 +12,7 @@
 
 2. 进入 api 接口定义目录，生成 gRPC 接口定义文件: `cd /go/src/gome/api && protoc --go_out=plugins=grpc:. *.proto`
 
-3. 进入项目目录，复制并修改配置: `cd /go/src/gome/gomengine && copy config.example.yaml config.yaml`
+3. 进入项目目录，复制并修改配置: `cd /go/src/gome && copy config.example.yaml config.yaml`
 
 4. 启动 gRPC 服务端：`go run main.go`
 
@@ -25,26 +25,24 @@
 * gome 目录说明：
     > api，RPC 接口定义目录，使用 ProtoBuf 3 版本
 
-    > gomengine，源代码目录
+    > engine，撮合引擎实现逻辑目录
 
-        - engine，撮合引擎实现逻辑目录
+    > grpc，gRPC服务脚本
 
-        - grpc，gRPC服务脚本
+    > redis，redis客户端
 
-        - redis，redis客户端
+    > util，工具脚本目录
 
-        - util，工具脚本目录
+    > main.go 入口文件
 
-        - main.go 入口文件
+    > match.go 撮合脚本
 
-        - match.go 撮合脚本
+    > match_notice.go 撮合结果消费脚本
 
-        - match_notice.go 撮合结果消费脚本
-
-        - test.go 测试脚本，命令如下：
-            1. 下单:`go run test.go doOrder`
-            2. 撤单:`go run test.go delOrder`
-            3. 获取交易对深度:`go run test.go getDepth symbol transaction`
+    > test.go 测试脚本，命令如下：
+        1. 下单:`go run test.go doOrder`
+        2. 撤单:`go run test.go delOrder`
+        3. 获取交易对深度:`go run test.go getDepth symbol transaction`
 
 * gome 会使用 symbol 名作为下单队列，撮合引擎会消耗此队列，撮合成交结果会 push 到 notice:+symbol 作为名称的队列，如 notice:btc2usdt
 
