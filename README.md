@@ -40,9 +40,11 @@
     > match_notice.go 撮合结果消费脚本
 
     > test.go 测试脚本，命令如下：
+
         1. 下单:`go run test.go doOrder`
         2. 撤单:`go run test.go delOrder`
         3. 获取交易对深度:`go run test.go getDepth symbol transaction`
+        4. 查看命令帮助:`go run test.go help`
 
 * gome 会使用 symbol 名作为下单队列，撮合引擎会消耗此队列，撮合成交结果会 push 到 notice:+symbol 作为名称的队列，如 notice:btc2usdt
 
