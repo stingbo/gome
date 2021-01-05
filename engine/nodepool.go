@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"github.com/go-redis/redis/v8"
 	"gome/api"
 	"strconv"
@@ -8,6 +9,47 @@ import (
 
 type Pool struct {
 	Node *OrderNode
+}
+
+// 获取深度列表.
+func (pl *Pool) GetDepth(ctx2 context.Context, request *api.DepthRequest) (*api.DepthResponse, error) {
+	order := api.OrderRequest{Uuid: "", Oid: "", Symbol: request.Symbol, Transaction: api.TransactionType(request.Transaction), Price: 0, Volume: 0}
+	node := NewOrderNode(order)
+	pool := Pool{Node: node}
+
+	total := pool.GetDepthTotal()
+	offset := request.Offset
+	// 偏移量只能从0开始
+	if offset < 0 {
+		offset = 0
+	}
+	// 每次获取1~100条数据
+	count := request.Count
+	if count <= 0 || count > 100 {
+		count = 20
+	}
+	rangeBy := redis.ZRangeBy{Min: "-inf", Max: "+inf", Offset: offset, Count: count}
+	res := cache.ZRevRangeByScore(ctx, pool.Node.OrderListSortSetKey, &rangeBy)
+	prices := res.Val()
+
+	var data []*api.Depth
+	for _, p := range prices {
+		vols := cache.HGet(ctx, pool.Node.OrderDepthHashKey, pool.Node.OrderDepthHashKey+":"+p)
+		price, _ := strconv.ParseFloat(p, 64)
+		volume, _ := strconv.ParseFloat(vols.Val(), 64)
+
+		depth := api.Depth{P: price, V: volume}
+		data = append(data, &depth)
+	}
+
+	response := &api.DepthResponse{
+		Code: 0,
+		Message: "获取成功",
+		Total: total,
+		Data: data,
+	}
+
+	return response, nil
 }
 
 func (pl *Pool) SetPrePool() {
@@ -86,30 +128,6 @@ func (pl *Pool) GetDepthTotal() int64 {
 	total := cache.ZCard(ctx, pl.Node.OrderListSortSetKey)
 
 	return total.Val()
-}
-
-// 获取深度列表.
-func (pl *Pool) GetDepth(offset int64, count int64) map[int]map[string]float64 {
-	depths := make(map[int]map[string]float64)
-	// 偏移量只能从0开始
-	if offset < 0 {
-		offset = 0
-	}
-	// 每次获取1~100条数据
-	if count <= 0 || count > 100 {
-		count = 20
-	}
-	rangeBy := redis.ZRangeBy{Min: "-inf", Max: "+inf", Offset: offset, Count: count}
-	res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetKey, &rangeBy)
-	prices := res.Val()
-	for i, p := range prices {
-		depths[i] = make(map[string]float64)
-		vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
-		depths[i]["p"], _ = strconv.ParseFloat(p, 64)
-		depths[i]["v"], _ = strconv.ParseFloat(vols.Val(), 64)
-	}
-
-	return depths
 }
 
 // 获取买卖的深度
