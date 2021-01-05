@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/urfave/cli/v2"
-	"gome/gomengine/engine"
+	"gome/engine"
 	"log"
 	"os"
 )

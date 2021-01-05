@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"gome/api"
-	"gome/gomengine/engine"
-	megrpc "gome/gomengine/grpc"
+	"gome/engine"
+	rpc "gome/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log"
@@ -26,8 +26,8 @@ func main() {
 			fmt.Println(err)
 		}
 	}()
-	gomegrpc := megrpc.NewRpcListener()
-	listener := gomegrpc.Listener
+	rpcListener := rpc.NewRpcListener()
+	listener := rpcListener.Listener
 
 	rpcServer := grpc.NewServer()
 	api.RegisterOrderServer(rpcServer, &Order{})

@@ -6,7 +6,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/net/context"
 	"gome/api"
-	"gome/gomengine/util"
+	"gome/util"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
