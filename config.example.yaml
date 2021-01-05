@@ -23,5 +23,5 @@ mysql:
   username: root
   password: 123456
 
-gomengine:
+gome:
   accuracy: 8 #计算精度

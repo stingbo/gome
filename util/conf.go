@@ -6,7 +6,7 @@ type MeConfig struct {
 	MQconf    RabbitMQ `yaml:"rabbitmq"`
 	CacheConf Cache    `yaml:"redis"`
 	GRPCConf  GRPC     `yaml:"grpc"`
-	MeConf    Mengine  `yaml:"gomengine"`
+	MeConf    Mengine  `yaml:"gome"`
 }
 
 type Cache struct {
