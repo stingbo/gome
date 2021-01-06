@@ -31,7 +31,7 @@
 
     > redis，redis客户端
 
-    > util，工具脚本目录
+    > utils，工具脚本目录
 
     > main.go 入口文件
 
