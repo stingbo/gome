@@ -6,10 +6,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/net/context"
 	"gome/api"
+	rpc "gome/grpc"
 	"gome/util"
-	"google.golang.org/grpc"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -81,17 +79,8 @@ func main() {
 }
 
 func GetDepth (symbol string, tran int, offset int64, count int64) api.DepthResponse {
-	conf := &util.MeConfig{}
-	yamlFile, err := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.GRPCConf.Host
-	port := conf.GRPCConf.Port
-	conn, err := grpc.Dial(host+":"+port, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalln("Can't connect: " + host + ":" + port)
-	}
+	conn := rpc.NewRpcClient()
 	defer conn.Close()
-
 	client := api.NewPoolClient(conn)
 
 	depth := api.DepthRequest{Symbol: symbol, Transaction: api.DepthRequest_DepthType(tran), Offset: offset, Count: count}
@@ -108,15 +97,7 @@ func GetDepth (symbol string, tran int, offset int64, count int64) api.DepthResp
 }
 
 func DoOrder() {
-	conf := &util.MeConfig{}
-	yamlFile, err := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.GRPCConf.Host
-	port := conf.GRPCConf.Port
-	conn, err := grpc.Dial(host+":"+port, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalln("Can't connect: " + host + ":" + port)
-	}
+	conn := rpc.NewRpcClient()
 	defer conn.Close()
 	client := api.NewOrderClient(conn)
 
@@ -147,15 +128,7 @@ func DoOrder() {
 }
 
 func DeleteOrder() {
-	conf := &util.MeConfig{}
-	yamlFile, err := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(yamlFile, conf)
-	host := conf.GRPCConf.Host
-	port := conf.GRPCConf.Port
-	conn, err := grpc.Dial(host+":"+port, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalln("Can't connect: " + host + ":" + port)
-	}
+	conn := rpc.NewRpcClient()
 	defer conn.Close()
 	client := api.NewOrderClient(conn)
 
