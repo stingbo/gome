@@ -2,12 +2,12 @@ package redis
 
 import (
 	"github.com/go-redis/redis/v8"
-	"gome/util"
+	"gome/utils"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 )
 
-var Conf *util.MeConfig
+var Conf *utils.MeConfig
 
 func init() {
 	confFile, _ := ioutil.ReadFile("config.yaml")

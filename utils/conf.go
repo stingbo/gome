@@ -1,4 +1,4 @@
-package util
+package utils
 
 type MeConfig struct {
 	Debug     bool     `yaml:"Debug"`

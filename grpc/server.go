@@ -1,14 +1,14 @@
 package grpc
 
 import (
-	"gome/util"
+	"gome/utils"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"net"
 )
 
-var Conf *util.MeConfig
+var Conf *utils.MeConfig
 
 type gRPC struct {
 	Listener net.Listener

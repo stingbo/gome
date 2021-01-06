@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gome/redis"
-	"gome/util"
+	"gome/utils"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"strconv"
@@ -22,7 +22,7 @@ const (
 var (
 	ctx = context.Background()
 	cache = redis.NewRedisClient()
-	Conf *util.MeConfig
+	Conf *utils.MeConfig
 	Debug bool
 	LogLevel string
 )
