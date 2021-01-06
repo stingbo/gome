@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
-	"gome/utils"
 	"log"
 )
 
@@ -174,7 +173,7 @@ func (r *RabbitMQ) ConsumeMatchOrder() {
 			fmt.Println(err)
 		}
 		if LogLevel == "debug" {
-			utils.Info.Printf("撮合结果------：%#v\n", order)
+			//utils.Info.Printf("撮合结果------：%#v\n", order)
 		}
 	}
 
