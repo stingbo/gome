@@ -1,28 +1,41 @@
 package utils
 
 import (
-	"io"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
-	"os"
-	"time"
 )
 
-var (
-	Info *log.Logger
-	Error *log.Logger
-)
-const (
-	timeFormat = "2006-01-02"
-)
-
-func init() {
-	//日志输出文件
-	logFileName := "./logs/order-"+time.Now().Format(timeFormat)+".log"
-	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+func ZapInterceptor() *zap.Logger {
+	logger, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatalln("Failed to open error logger file:", err)
+		log.Fatalf("failed to initialize zap logger: %v", err)
 	}
-	//自定义日志格式
-	Info = log.New(io.MultiWriter(file, os.Stderr), "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(io.MultiWriter(file, os.Stderr), "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	grpc_zap.ReplaceGrpcLoggerV2(logger)
+
+	return logger
+}
+
+// ZapInterceptor 返回zap.logger实例(把日志写到文件中)
+func ZapFileInterceptor() *zap.Logger {
+	w := zapcore.AddSync(&lumberjack.Logger{
+		Filename:  "logs/debug.log",
+		MaxSize:   512, //MB
+		LocalTime: true,
+	})
+
+	config := zap.NewProductionEncoderConfig()
+	config.EncodeTime = zapcore.ISO8601TimeEncoder
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(config),
+		w,
+		zap.NewAtomicLevel(),
+	)
+
+	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
+	grpc_zap.ReplaceGrpcLoggerV2(logger)
+
+	return logger
 }
