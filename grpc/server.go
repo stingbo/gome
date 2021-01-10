@@ -30,6 +30,7 @@ func NewRpcListener() *gRPC {
 	var err error
 	gRPC.Listener, err = net.Listen(gRPC.Protocol, gRPC.RPCurl)
 	if err != nil {
+		log.Println("错误:", err)
 		panic("服务启动失败")
 	} else {
 		if Conf.Debug {

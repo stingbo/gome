@@ -7,7 +7,6 @@ import (
 	"golang.org/x/net/context"
 	"gome/api"
 	rpc "gome/grpc"
-	"gome/utils"
 	"log"
 	"math/rand"
 	"os"
@@ -118,7 +117,6 @@ func DoOrder() {
 		//order := api.OrderRequest{Uuid: "2", Oid: strconv.Itoa(i), Symbol: "eth2usdt", Transaction: api.TransactionType(t), Price: p, Volume: float64(v)}
 		order := api.OrderRequest{Uuid: "2", Oid: strconv.Itoa(i), Symbol: "eth2usdt", Transaction: api.TransactionType(t), Price: p, Volume: v}
 		fmt.Printf("下单--------%#v\n", order)
-		utils.Info.Printf("下单------：%#v\n", order)
 		resp, err := client.DoOrder(context.Background(), &order)
 		if err != nil {
 			log.Fatalln("Do Format error:" + err.Error())

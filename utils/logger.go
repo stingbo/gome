@@ -14,7 +14,6 @@ func ZapInterceptor() *zap.Logger {
 		log.Fatalf("failed to initialize zap logger: %v", err)
 	}
 	grpc_zap.ReplaceGrpcLoggerV2(logger)
-
 	return logger
 }
 
@@ -36,6 +35,5 @@ func ZapFileInterceptor() *zap.Logger {
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	grpc_zap.ReplaceGrpcLoggerV2(logger)
-
 	return logger
 }

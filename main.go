@@ -11,6 +11,7 @@ import (
 	"gome/api"
 	"gome/engine"
 	rpc "gome/grpc"
+	"gome/request"
 	"gome/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -26,7 +27,6 @@ func main() {
 	rpcListener := rpc.NewRpcListener()
 	listener := rpcListener.Listener
 
-	//rpcServer := grpc.NewServer()
 	rpcServer := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(),
@@ -35,21 +35,23 @@ func main() {
 			//grpc_zap.StreamServerInterceptor(ZapInterceptor()),
 			grpc_zap.StreamServerInterceptor(utils.ZapFileInterceptor()),
 			//grpc_auth.StreamServerInterceptor(myAuthFunction),
-			grpc_recovery.StreamServerInterceptor(),
+			grpc_recovery.StreamServerInterceptor(utils.RecoveryInterceptor()),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(),
 			grpc_opentracing.UnaryServerInterceptor(),
 			//grpc_prometheus.UnaryServerInterceptor,
-			grpc_zap.UnaryServerInterceptor(utils.ZapFileInterceptor()),
+			//grpc_zap.UnaryServerInterceptor(utils.ZapFileInterceptor(), request.GetOption()),
+			request.UnaryServerInterceptor(utils.ZapFileInterceptor()),
 			//grpc_auth.UnaryServerInterceptor(myAuthFunction),
-			grpc_recovery.UnaryServerInterceptor(),
+			grpc_recovery.UnaryServerInterceptor(utils.RecoveryInterceptor()),
 		)),
 	)
 	api.RegisterOrderServer(rpcServer, &engine.Order{})
 	api.RegisterPoolServer(rpcServer, &engine.Pool{})
 	reflection.Register(rpcServer)
 	if err := rpcServer.Serve(listener); err != nil {
+		log.Println("错误:", err)
 		log.Fatalln("服务启动失败")
 	}
 }
