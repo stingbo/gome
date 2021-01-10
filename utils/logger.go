@@ -20,7 +20,7 @@ func ZapInterceptor() *zap.Logger {
 // ZapInterceptor 返回zap.logger实例(把日志写到文件中)
 func ZapFileInterceptor() *zap.Logger {
 	w := zapcore.AddSync(&lumberjack.Logger{
-		Filename:  "logs/debug.log",
+		Filename:  "logs/info.log",
 		MaxSize:   512, //MB
 		LocalTime: true,
 	})
