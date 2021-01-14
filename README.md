@@ -1,66 +1,67 @@
-## Gome 高性能撮合引擎微服务
+## Gome-High performance matchmaking engine microservice
 
-- 使用 Golang 做计算，gRPC 做服务，ProtoBuf 做数据交换，RabbitMQ 做队列，Redis 做缓存实现的高性能撮合引擎微服务
+- Using golang as computing, grpc as service, protobuf as data exchange, rabbitmq as queue, redis as cache to realize high-performance matchmaking engine micro service
 
-## 依赖
+## Requirement
 
-- 具体依赖信息可以查看 **[docker-composer 文件](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
+- Specific dependency information can be viewed **[docker-composer file](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
 
-## 快速开始
+## Usage
 
-1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome bash`
+1. **[Use docker to deploy the operating environment with one click](https://github.com/stingbo/gome-docker)**，Enter the gome container，`docker exec -it gome bash`
 
-2. 进入 api 接口定义目录，生成 gRPC 接口定义文件: `cd /go/src/gome/api && protoc --go_out=plugins=grpc:. *.proto`
+2. Enter the api interface definition directory and generate a gRPC interface definition file: `cd /go/src/gome/api && protoc --go_out=plugins=grpc:. *.proto`
 
-3. 进入项目目录，复制并修改配置: `cd /go/src/gome && copy config.example.yaml config.yaml`
+3. Enter the project directory, copy and modify the configuration: `cd /go/src/gome && copy config.example.yaml config.yaml`
 
-4. 启动 gRPC 服务端：`go run main.go`
+4. Start the gRPC server：`go run main.go`
 
-5. 启动脚本撮合消费 RabbitMQ 队列：`go run match.go symbol`，symbol 为交易对名称，如 btc2usdt，symbol 要与客户端调用时保持一致
+5. Start script to match consumption RabbitMQ queue：`go run match.go symbol`，symbol is the name of the trading pair，such as btc2usdt，the symbol should be the same as when called by the client
 
-6. 启动脚本消费撮合结果 RabbitMQ 队列：`go run match_notice.go symbol`.
+6. Start script consumption match result RabbitMQ queue：`go run match_notice.go symbol`.
 
-## 说明
+## Description
 
-* gome 目录说明：
-    > api，RPC 接口定义目录，使用 ProtoBuf 3 版本
+* gome Catalog description：
+    > api, RPC interface definition directory, using ProtoBuf 3 version
 
-    > engine，撮合引擎实现逻辑目录
+    > engine, matching engine to realize logical catalog
 
-    > grpc，gRPC服务脚本
+    > grpc, gRPC service script
 
-    > redis，redis客户端
+    > redis, redis client
 
-    > utils，工具脚本目录
+    > utils, tool script directory
 
-    > main.go 入口文件
+    > main.go, entry file
 
-    > match.go 撮合脚本
+    > match.go, matchmaking script
 
-    > match_notice.go 撮合结果消费脚本
+    > match_notice.go, match result consumption script
 
-    > test.go 测试脚本，命令如下：
+    > test.go, test script, the command is as follows:
 
-        1. 下单:`go run test.go doOrder`
-        2. 撤单:`go run test.go delOrder`
-        3. 获取交易对深度:`go run test.go getDepth symbol transaction`
-        4. 查看命令帮助:`go run test.go help`
+        1. Place an order:`go run test.go doOrder`
+        2. Cancel order:`go run test.go delOrder`
+        3. Get symbol depth:`go run test.go getDepth symbol transaction`
+        4. View command help:`go run test.go help`
 
-* gome 会使用 symbol 名作为下单队列，撮合引擎会消耗此队列，撮合成交结果会 push 到 notice:+symbol 作为名称的队列，如 notice:btc2usdt
+* Gome will use the symbol name as the order queue, the matching engine will consume this queue, and the matching result will be pushed to notice:+symbol as the name queue, such as notice:btc2usdt
 
-* 目前消费消费成交结果队列时只打印了数据，没有其它功能，使用者可以自行消费此队列，实现后续逻辑，如更新数据库，通知用户等，gome 后续会增加根据配置的地址推送功能，这样使用者只需要配置接收地址即可接收结果然后处理
+* At present, only the data is printed when consuming the transaction result queue, and there is no other function. Users can consume this queue by themselves to implement subsequent logic, such as updating the database, notifying users, etc. Gome will add the address push function according to the configuration in the future, so use Users only need to configure the receiving address to receive the results and then process
 
-* 本项目是在我之前的 PHP 项目基础上，把队列替换为 RabbitMQ，Redis 只作为缓存，再使用 Golang 与 gRPC 实现微服务化
 
-* gome 的具体实现思想与数据结构设计可以查看 **[基于Laravel的撮合服务](https://github.com/stingbo/mengine)** 项目
+* This project is based on my previous PHP project, replacing the queue with RabbitMQ, Redis only as a cache, and then using Golang and gRPC to achieve microservices
 
-* 本项目不用依赖其他环境，使用 docker 跑起环境后，其他项目对接调用即可，如：
-    - [PHP 客户端](https://github.com/stingbo/php-gome)，composer 安装，开箱即用
+* The specific implementation ideas and data structure design of gome can be viewed **[Laravel-based matching service](https://github.com/stingbo/mengine)** project
 
-* api 的 OrderRequest 里，uuid(用户标识)与 oid(订单标识)应该具有系统唯一性，话说回来，这两者在系统里也不应该重复，我定义的是 string 类型，方便主键是非自增整型数据库使用
+* This project does not need to rely on other environments. After running the environment with docker, other projects can be connected and called, such as:
+    - [PHP client](https://github.com/stingbo/php-gome), composer installation, ready to use out of the box
 
-## 总结
+* In the OrderRequest of the api, uuid (user ID) and oid (order ID) should be unique to the system. In other words, the two should not be duplicated in the system. I defined the string type to facilitate the primary key to be non-incremental. Database usage
 
-1. 如果使用的 docker 环境，需要进入 gome 容器执行对应的操作，或者使用 Supervisor 在启动容器时自动启动相关脚本
+## Summary
 
-1. 进入 rabbitmq 容器，`docker exec -it rabbitmq bash`，查看现有队列：`rabbitmqctl list_queues`，删除队列：`rabbitmqctl delete_queue queuename`
+1. If you are using a docker environment, you need to enter the gome container to perform the corresponding operation, or use Supervisor to automatically start the relevant script when the container is started
+
+2. Enter the rabbitmq container, `docker exec -it rabbitmq bash`, view the existing queue: `rabbitmqctl list_queues`, delete the queue: `rabbitmqctl delete_queue queuename`
