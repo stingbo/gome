@@ -2,6 +2,8 @@
 
 - Using golang as computing, grpc as service, protobuf as data exchange, rabbitmq as queue, redis as cache to realize high-performance matchmaking engine micro service
 
+- [中文文档](https://github.com/stingbo/gome/blob/master/README_cn.md)
+
 ## Requirement
 
 - Specific dependency information can be viewed **[docker-composer file](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
