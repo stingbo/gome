@@ -138,7 +138,7 @@ func (pl *Pool) GetDoubleSideDepth(offset int64, count int64) {
 func (pl *Pool) GetReverseDepth() [][]string {
 	var depths [][]string
 	price := strconv.FormatFloat(pl.Node.Price, 'f', -1, 64)
-	if api.TransactionType_value["SALE"] == pl.Node.Transaction {
+	if api.TransactionType_value["SELL"] == pl.Node.Transaction {
 		rangeBy := redis.ZRangeBy{Min: price, Max: "+inf"}
 		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetRKey, &rangeBy)
 		prices := res.Val()

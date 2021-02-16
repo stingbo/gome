@@ -3,7 +3,7 @@ option go_package = ".;api";
 
 enum TransactionType {
   BUY = 0;
-  SALE = 1;
+  SELL = 1;
 }
 
 //定义请求结构

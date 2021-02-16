@@ -6,7 +6,7 @@ message DepthRequest {
   int64 count = 2; // 查询条数
   enum DepthType {
     BUY = 0; // 只获取买方深度
-    SALE = 1; // 只获取卖方深度
+    SELL = 1; // 只获取卖方深度
     DOUBLE_SIDE = 2; // 同时获取买卖的深度，待实现
   }
   string symbol = 3; // 交易对

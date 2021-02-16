@@ -92,12 +92,12 @@ func (node *OrderNode) SetOrderHashKey() {
 }
 
 func (node *OrderNode) SetListSortSetKey() {
-	if api.TransactionType_value["SALE"] == node.Transaction {
-		node.OrderListSortSetKey = node.Symbol + ":SALE"
+	if api.TransactionType_value["SELL"] == node.Transaction {
+		node.OrderListSortSetKey = node.Symbol + ":SELL"
 		node.OrderListSortSetRKey = node.Symbol + ":BUY"
 	} else {
 		node.OrderListSortSetKey = node.Symbol + ":BUY"
-		node.OrderListSortSetRKey = node.Symbol + ":SALE"
+		node.OrderListSortSetRKey = node.Symbol + ":SELL"
 	}
 }
 
