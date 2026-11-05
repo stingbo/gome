@@ -4,8 +4,8 @@ import (
 	"context"
 
 	goredis "github.com/go-redis/redis/v8"
-	"gome/redis"
-	"gome/utils"
+	"github.com/stingbo/gome/redis"
+	"github.com/stingbo/gome/utils"
 )
 
 const (

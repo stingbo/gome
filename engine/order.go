@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"gome/api"
+	"github.com/stingbo/gome/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log"

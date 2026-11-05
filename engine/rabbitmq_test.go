@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
-	"gome/api"
-	"gome/utils"
+	"github.com/stingbo/gome/api"
+	"github.com/stingbo/gome/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

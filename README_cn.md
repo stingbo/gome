@@ -8,9 +8,20 @@
 
 ## 快速开始
 
+使用 Go 1.16 或更新版本安装可执行文件。
+
+```bash
+go install github.com/stingbo/gome/cmd/server@v1.0.1
+go install github.com/stingbo/gome/cmd/match@v1.0.1
+go install github.com/stingbo/gome/cmd/notice@v1.0.1
+go install github.com/stingbo/gome/cmd/client@v1.0.1
+```
+
+命令会将 `server`、`match`、`notice` 和 `client` 安装到 `GOBIN`，默认是 `$(go env GOPATH)/bin`。运行服务前，从对应版本复制示例配置，并按下文配置 Redis 和 RabbitMQ。
+
 1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome bash`
 
-2. 仓库已包含生成的 Go 代码。修改协议后，在 `api/` 下使用 `protoc-gen-go v1.4.3` 重新运行 `protoc --go_out=plugins=grpc:. *.proto`。
+2. 仓库已包含生成的 Go 代码。修改协议后，在 `api/` 下使用 `protoc-gen-go v1.4.3` 重新运行 `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto`。
 
 3. 进入项目目录，复制并修改配置: `cd /go/src/gome && cp config.example.yaml config.yaml`
 

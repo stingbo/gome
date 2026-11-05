@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = ".;api";
+option go_package = "github.com/stingbo/gome/api;api";
 
 message DepthRequest {
   int64 offset = 1; // 偏移量

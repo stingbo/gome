@@ -10,9 +10,20 @@
 
 ## Usage
 
+Install the executables with Go 1.16 or later.
+
+```bash
+go install github.com/stingbo/gome/cmd/server@v1.0.1
+go install github.com/stingbo/gome/cmd/match@v1.0.1
+go install github.com/stingbo/gome/cmd/notice@v1.0.1
+go install github.com/stingbo/gome/cmd/client@v1.0.1
+```
+
+The commands install `server`, `match`, `notice`, and `client` in `GOBIN` (by default, `$(go env GOPATH)/bin`). To run the services, copy the example configuration from the matching source tag and configure Redis and RabbitMQ as described below.
+
 1. **[Use docker to deploy the operating environment with one click](https://github.com/stingbo/gome-docker)**，Enter the gome container，`docker exec -it gome bash`
 
-2. Generated Go sources are checked in. After editing a protocol, run `protoc --go_out=plugins=grpc:. *.proto` in `api/` with `protoc-gen-go v1.4.3`.
+2. Generated Go sources are checked in. After editing a protocol, run `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto` in `api/` with `protoc-gen-go v1.4.3`.
 
 3. Enter the project directory, copy and modify the configuration: `cd /go/src/gome && cp config.example.yaml config.yaml`
 

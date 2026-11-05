@@ -1,6 +1,6 @@
 package engine
 
-import "gome/api"
+import "github.com/stingbo/gome/api"
 
 type OrderNode struct {
 	CommandID   string `json:",omitempty"`

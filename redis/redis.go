@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/go-redis/redis/v8"
-	"gome/utils"
+	"github.com/stingbo/gome/utils"
 )
 
 func NewRedisClient(config utils.Cache) *redis.Client {

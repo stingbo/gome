@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"gome/api"
+	"github.com/stingbo/gome/api"
 )
 
 type levelUpdate struct {

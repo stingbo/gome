@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gome/api"
+	"github.com/stingbo/gome/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"gome/api"
+	"github.com/stingbo/gome/api"
 )
 
 func TestRecoverOrderAndOutbox(t *testing.T) {

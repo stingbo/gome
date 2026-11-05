@@ -1,4 +1,4 @@
-module gome
+module github.com/stingbo/gome
 
 go 1.15
 

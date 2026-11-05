@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"gome/api"
-	"gome/utils"
+	"github.com/stingbo/gome/api"
+	"github.com/stingbo/gome/utils"
 )
 
 func configureTestBook(t *testing.T) string {

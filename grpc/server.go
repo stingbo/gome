@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"gome/utils"
+	"github.com/stingbo/gome/utils"
 	"net"
 )
 

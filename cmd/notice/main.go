@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 	"github.com/urfave/cli/v2"
-	"gome/engine"
-	"gome/utils"
+	"github.com/stingbo/gome/engine"
+	"github.com/stingbo/gome/utils"
 	"log"
 	"os"
 )
