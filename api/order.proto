@@ -20,10 +20,39 @@ message OrderRequest {
 message OrderResponse {
   int32 code = 1;
   string message = 2;
+  bool duplicate = 3; // Same normalized DoOrder request was submitted before.
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1; // Publication has not been confirmed.
+  ORDER_STATUS_QUEUED = 2;
+  ORDER_STATUS_OPEN = 3;
+  ORDER_STATUS_PARTIALLY_FILLED = 4;
+  ORDER_STATUS_FILLED = 5;
+  ORDER_STATUS_CANCELLED = 6;
+}
+
+message OrderStatusRequest {
+  string uuid = 1;
+  string oid = 2;
+  string symbol = 3;
+}
+
+message OrderStatusResponse {
+  OrderStatus status = 1;
+  TransactionType transaction = 2;
+  int64 price_ticks = 3;
+  int64 original_volume_ticks = 4;
+  int64 filled_volume_ticks = 5;
+  int64 remaining_volume_ticks = 6;
+  int64 cancelled_volume_ticks = 7;
+  int32 accuracy = 8;
 }
 
 //定义下单服务
 service Order {
   rpc DoOrder(OrderRequest) returns (OrderResponse){}
   rpc DeleteOrder(OrderRequest) returns (OrderResponse){}
+  rpc GetOrderStatus(OrderStatusRequest) returns (OrderStatusResponse){}
 }

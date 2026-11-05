@@ -24,8 +24,19 @@ type bookUpdate struct {
 	events []MatchResult
 }
 
-// applyOrder commits the book, replay marker and outbox in one Redis transaction.
+// applyOrder commits the book, order statuses, replay marker and outbox together.
 func applyOrder(ctx context.Context, order OrderNode) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		err = commitOrder(ctx, order)
+		if err != redis.TxFailedErr {
+			return err
+		}
+	}
+	return err
+}
+
+func commitOrder(ctx context.Context, order OrderNode) error {
 	marker := order.Symbol + ":accepted"
 	id := order.Oid
 	if order.Action == DEL {
@@ -33,7 +44,8 @@ func applyOrder(ctx context.Context, order OrderNode) error {
 		id = order.CommandID
 	}
 	outbox := outboxKey(order.Symbol)
-	keys := []string{marker, order.OrderDepthHashKey, order.OrderListSortSetKey, order.OrderListSortSetRKey, outbox}
+	orderKey := orderStatusKey(order.Symbol, order.Oid)
+	keys := []string{marker, orderKey, order.OrderDepthHashKey, order.OrderListSortSetKey, order.OrderListSortSetRKey, outbox}
 	return cache.Watch(ctx, func(tx *redis.Tx) error {
 		seen, err := tx.HExists(ctx, marker, id).Result()
 		if err != nil || (id != "" && seen) {
@@ -42,6 +54,13 @@ func applyOrder(ctx context.Context, order OrderNode) error {
 		var update bookUpdate
 		switch order.Action {
 		case ADD:
+			reserved, readErr := readOrderRecord(ctx, tx, orderKey)
+			if readErr != nil {
+				return readErr
+			}
+			if reserved != nil && reserved.Terms != newOrderRecord(order).Terms {
+				return fmt.Errorf("queued order %s conflicts with its reservation", order.Oid)
+			}
 			err = update.add(ctx, tx, order)
 		case DEL:
 			err = update.cancel(ctx, tx, order)
@@ -57,6 +76,10 @@ func applyOrder(ctx context.Context, order OrderNode) error {
 				return err
 			}
 		}
+		records, err := update.orderRecords(ctx, tx, order)
+		if err != nil {
+			return err
+		}
 		_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
 			if id != "" {
 				pipe.HSet(ctx, marker, id, 1)
@@ -65,6 +88,13 @@ func applyOrder(ctx context.Context, order OrderNode) error {
 				if err := level.write(ctx, pipe); err != nil {
 					return err
 				}
+			}
+			for key, record := range records {
+				body, err := json.Marshal(record)
+				if err != nil {
+					return err
+				}
+				pipe.Set(ctx, key, body, 0)
 			}
 			for _, event := range update.events {
 				body, err := json.Marshal(event)

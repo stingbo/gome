@@ -10,6 +10,8 @@ import (
 	"github.com/streadway/amqp"
 	"gome/api"
 	"gome/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
@@ -49,6 +51,18 @@ func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
 		if _, err := (Order{}).DoOrder(request, order); err != nil {
 			t.Fatal(err)
 		}
+	}
+
+	response, err := (Order{}).DoOrder(request, taker)
+	if err != nil || !response.GetDuplicate() {
+		t.Fatalf("expected duplicate RPC response, got %v, %v", response, err)
+	}
+	conflict := &api.OrderRequest{Uuid: taker.Uuid, Oid: taker.Oid, Symbol: symbol, Price: taker.Price, Volume: 2}
+	if _, err := (Order{}).DoOrder(request, conflict); status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("expected conflict RPC response, got %v", err)
+	}
+	if queue, err := channel.QueueInspect(symbol); err != nil || queue.Messages != 2 {
+		t.Fatalf("duplicate or conflict changed queue: %+v, %v", queue, err)
 	}
 
 	// Make the real broker accept a notice, then simulate a worker disconnect
@@ -106,6 +120,8 @@ func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
 		first.MessageId != replay.MessageId || string(first.Body) != string(replay.Body) {
 		t.Fatalf("notice replay changed identity or payload: %q, %q", first.MessageId, replay.MessageId)
 	}
+	checkOrderStatus(t, testOrder(t, maker), api.OrderStatus_ORDER_STATUS_PARTIALLY_FILLED, 1e8, 1e8, 0)
+	checkOrderStatus(t, testOrder(t, taker), api.OrderStatus_ORDER_STATUS_FILLED, 1e8, 0, 0)
 	if remaining := readFirst(t, testOrder(t, maker)).Volume; remaining != 1e8 {
 		t.Fatalf("order redelivery matched twice: %v", remaining)
 	}

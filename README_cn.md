@@ -35,6 +35,13 @@
 GOME_TEST_REDIS_PORT=<Redis本机端口> GOME_TEST_RABBITMQ_PORT=<RabbitMQ本机端口> go test -race ./engine
 ```
 
+## 订单状态与下单重试
+
+- `Order.GetOrderStatus` 使用 `symbol`、`oid`、`uuid` 查询。状态包括发布待确认（`PENDING`）、已入队（`QUEUED`）、已挂单（`OPEN`）、部分成交（`PARTIALLY_FILLED`）、完全成交（`FILLED`）和已撤销（`CANCELLED`）。价格、原始数量、成交量、剩余量和撤销量用整数 tick 返回，`accuracy` 是小数位数。撤单仍是异步操作，只有订单簿实际撤销后，状态才变为 `CANCELLED`。
+- 在同一交易对内，用相同订单 ID、用户、方向、价格和数量重试 `DoOrder`，成功响应包含 `duplicate=true`。同一 ID 对应不同参数时返回 gRPC `AlreadyExists`。现有下单和撤单的 RPC 路径及字段编号保留。
+- 下单超时或返回 `Unavailable` 时，使用原订单 ID 和原参数重试。如果状态仍是 `PENDING`，重试会再次发布，撮合端会去重。如果已经入队或撮合完成，重试直接返回已有结果。首次发布前服务中断留下的 `PENDING` 记录需要客户端重试。
+- 升级时先停止旧版生产者并排空订单指令，再切换新版 gRPC 服务和撮合进程。升级前已处理的订单没有完整的原始请求和状态历史，因此查询可能返回 `NotFound`。已使用的历史订单 ID 仍受保护，重新提交会返回 `AlreadyExists`。
+
 ## 撮合精度
 
 - 下单价格和数量使用 `gome.accuracy` 转成整数 tick。例如配置为 8 时，最小单位是 `0.00000001`。小于最小单位、无法整除为 tick 或超过单笔范围的价格和数量会返回 `InvalidArgument`，避免静默舍入。单笔上限为 `2^53 - 1` tick，保证 Redis 价格排序能区分相邻 tick。

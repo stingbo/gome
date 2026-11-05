@@ -34,6 +34,14 @@ When upgrading from the old non-durable queues, stop old publishers and drain bo
 
 To run the broker recovery test, set both `GOME_TEST_REDIS_PORT` and `GOME_TEST_RABBITMQ_PORT` to local ports for isolated instances. Enable the Redis settings above and set the RabbitMQ test username and password to `gome-test`. Run `go test -race ./engine`.
 
+## Order status and retries
+
+Call `Order.GetOrderStatus` with `symbol`, `oid`, and `uuid` to query publication, open, partially filled, filled, or cancelled states. Quantities and price are returned as integer ticks with their scale in `accuracy`. Cancellation remains asynchronous.
+
+Retry an ambiguous submission with the original ID and parameters. A matching retry returns `duplicate=true` on success and republishes only when publication is still unconfirmed. Reusing the same ID in a symbol with different normalized parameters returns gRPC `AlreadyExists`.
+
+Drain old order commands before upgrading the gRPC server and matching workers together. Historical order IDs remain reserved. Orders processed before the upgrade may return `NotFound` because their lifecycle was not recorded.
+
 ## Matching precision
 
 Prices and quantities must be positive whole ticks at the configured `gome.accuracy`. For example, a scale of 8 means a tick of `0.00000001`. Off-tick values and values above `2^53 - 1` ticks per order field return `InvalidArgument`. The gRPC fields remain doubles, with order inputs in business units and depth output in scaled units.

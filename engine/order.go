@@ -19,14 +19,7 @@ func (o Order) DoOrder(ctx context.Context, request *api.OrderRequest) (*api.Ord
 	if err != nil {
 		return nil, err
 	}
-	// 下单队列
-	if err := publishOrder(ctx, orderNode); err != nil {
-		log.Printf("publish order command for %s: %v", orderNode.Symbol, err)
-		return nil, status.Error(codes.Unavailable, "order queue unavailable")
-	}
-	response := &api.OrderResponse{Message: "下单请求已入队"}
-
-	return response, nil
+	return submitOrder(ctx, orderNode, publishOrder)
 }
 
 func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api.OrderResponse, error) {
@@ -52,14 +45,21 @@ func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api
 
 var symbolPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 
-func makeOrder(request *api.OrderRequest, action int8, accuracy int) (*OrderNode, error) {
-	if request == nil || !symbolPattern.MatchString(request.Symbol) {
-		return nil, status.Error(codes.InvalidArgument, "invalid symbol")
+func validateOrderIdentity(symbol, user, order string) error {
+	if !symbolPattern.MatchString(symbol) {
+		return status.Error(codes.InvalidArgument, "invalid symbol")
 	}
-	for _, id := range []string{request.Uuid, request.Oid} {
+	for _, id := range []string{user, order} {
 		if strings.TrimSpace(id) == "" || len(id) > 128 || strings.Contains(id, ":") {
-			return nil, status.Error(codes.InvalidArgument, "invalid user or order ID")
+			return status.Error(codes.InvalidArgument, "invalid user or order ID")
 		}
+	}
+	return nil
+}
+
+func makeOrder(request *api.OrderRequest, action int8, accuracy int) (*OrderNode, error) {
+	if err := validateOrderIdentity(request.GetSymbol(), request.GetUuid(), request.GetOid()); err != nil {
+		return nil, err
 	}
 	if request.Transaction != api.TransactionType_BUY && request.Transaction != api.TransactionType_SELL {
 		return nil, status.Error(codes.InvalidArgument, "invalid order side")
