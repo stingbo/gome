@@ -6,22 +6,22 @@
 
 - 具体依赖信息可以查看 **[docker-composer 文件](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
 
-## 安装并运行 v1.0.1
+## 安装并运行 v1.0.2
 
-在 [pkg.go.dev 版本页](https://pkg.go.dev/github.com/stingbo/gome@v1.0.1) 查看模块和包文档，在 [GitHub Release](https://github.com/stingbo/gome/releases/tag/v1.0.1) 查看发布说明和源码归档。
+在 [pkg.go.dev 版本页](https://pkg.go.dev/github.com/stingbo/gome@v1.0.2) 查看模块和包文档，在 [GitHub Release](https://github.com/stingbo/gome/releases/tag/v1.0.2) 查看发布说明和源码归档。
 
 使用 Go 1.16 或更新版本，可在任意目录执行以下命令。
 
 ```bash
-go install github.com/stingbo/gome/cmd/server@v1.0.1
-go install github.com/stingbo/gome/cmd/match@v1.0.1
-go install github.com/stingbo/gome/cmd/notice@v1.0.1
-go install github.com/stingbo/gome/cmd/client@v1.0.1
+go install github.com/stingbo/gome/cmd/server@v1.0.2
+go install github.com/stingbo/gome/cmd/match@v1.0.2
+go install github.com/stingbo/gome/cmd/notice@v1.0.2
+go install github.com/stingbo/gome/cmd/client@v1.0.2
 ```
 
 可执行文件安装到 `GOBIN`。未设置时，默认安装到 `$(go env GOPATH)/bin`。将该目录加入 `PATH` 后，可以直接用命令名启动。
 
-启动 Redis 和 RabbitMQ，将 [v1.0.1 示例配置](https://github.com/stingbo/gome/blob/v1.0.1/config.example.yaml) 复制为 `config.yaml`，并填入连接信息。在配置文件所在目录，分别用独立终端运行以下命令。撮合、结果消费和客户端请求应使用同一个交易对。
+启动 Redis 和 RabbitMQ，将 [v1.0.2 示例配置](https://github.com/stingbo/gome/blob/v1.0.2/config.example.yaml) 复制为 `config.yaml`，并填入连接信息。在配置文件所在目录，分别用独立终端运行以下命令。撮合、结果消费和客户端请求应使用同一个交易对。
 
 ```bash
 server
