@@ -6,7 +6,7 @@
 
 ## Requirement
 
-- Specific dependency information can be viewed **[docker-composer file](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
+Deploy Gome v1.0.2 with [Gome Docker v1.0.0](https://github.com/stingbo/gome-docker/releases/tag/v1.0.0). Follow its [Compose quickstart](https://github.com/stingbo/gome-docker/blob/v1.0.0/README.md#快速开始) to start Gome, Redis, and RabbitMQ together.
 
 ## Install and run v1.0.2
 
@@ -23,29 +23,82 @@ go install github.com/stingbo/gome/cmd/client@v1.0.2
 
 The binaries are installed in `GOBIN`, or in `$(go env GOPATH)/bin` if `GOBIN` is unset. Add that directory to your `PATH` to run the commands by name.
 
-Start Redis and RabbitMQ, then copy the [v1.0.2 example configuration](https://github.com/stingbo/gome/blob/v1.0.2/config.example.yaml) to `config.yaml` and set their connection details. Run each command in a separate terminal from the directory containing `config.yaml`. Use the same trading pair in `match`, `notice`, and client requests.
+### Docker Compose quickstart
+
+Clone the deployment repository at `v1.0.0`, copy its `.env.example` to `.env`, and set `RABBITMQ_PASSWORD`. Then run `docker compose up -d --build --wait` and `docker compose run --rm client` from that repository.
+
+### Local quickstart
+
+Start Redis and RabbitMQ with Docker. These ports and credentials are for a local demo. Wait for both readiness checks to pass before starting Gome. If RabbitMQ is still initializing, retry its check after a few seconds.
 
 ```bash
-server
-match btc2usdt
-notice btc2usdt
+docker run -d --name gome-redis -p 127.0.0.1:16379:6379 \
+  -v gome-redis-data:/data redis:7.4-alpine \
+  redis-server --appendonly yes --appendfsync always \
+  --no-appendfsync-on-rewrite no --maxmemory-policy noeviction
+
+docker run -d --name gome-rabbitmq -p 127.0.0.1:15673:5672 \
+  -v gome-rabbitmq-data:/var/lib/rabbitmq --hostname gome-rabbitmq \
+  -e RABBITMQ_DEFAULT_USER=gome -e RABBITMQ_DEFAULT_PASS=gome-dev rabbitmq:4
+
+docker exec gome-redis redis-cli ping
+docker exec gome-rabbitmq rabbitmq-diagnostics -q check_port_connectivity
 ```
 
-Set `GOME_CONFIG` to an absolute path to use a configuration file in another directory.
+Create `config.yaml` in your working directory. If you already have Redis and RabbitMQ, use their connection details and make sure Redis has the settings listed under Delivery and recovery.
+
+```yaml
+grpc:
+  host: 127.0.0.1
+  port: 8088
+redis:
+  host: 127.0.0.1
+  port: 16379
+  password: ""
+rabbitmq:
+  host: 127.0.0.1
+  port: 15673
+  username: gome
+  password: gome-dev
+gome:
+  accuracy: 8
+```
+
+From the directory containing `config.yaml`, run `server` and `match btc2usdt` in separate terminals. To use a config file elsewhere, set `GOME_CONFIG` to its absolute path in both terminals. Run one matching worker per trading pair and use that same symbol in client requests.
+
+### Submit and query an order with grpcurl
+
+Install [grpcurl](https://github.com/fullstorydev/grpcurl) and run these commands in a third terminal. The server enables gRPC reflection, so grpcurl can discover the RPCs directly.
+
+```bash
+grpcurl -plaintext \
+  -d '{"uuid":"user-1","oid":"order-1001","symbol":"btc2usdt","transaction":"BUY","price":65000,"volume":0.01}' \
+  127.0.0.1:8088 Order/DoOrder
+
+grpcurl -plaintext \
+  -d '{"uuid":"user-1","oid":"order-1001","symbol":"btc2usdt"}' \
+  127.0.0.1:8088 Order/GetOrderStatus
+```
+
+A successful submission means the order was queued. If the query returns `ORDER_STATUS_QUEUED`, query again after a moment. In an empty order book, this buy order becomes `ORDER_STATUS_OPEN`. Its `remainingVolumeTicks` is `"1000000"`, which represents 0.01 at `accuracy: 8`. To try another order, use a fresh `oid` in both commands. To retry a timed-out submission, reuse the original ID and parameters.
+
+### Integrate an application
+
+Give callers the deployed gRPC address and the [order](api/order.proto) and [depth](api/pool.proto) definitions. They can generate a client in their language and call `Order/DoOrder` to submit, `Order/DeleteOrder` to cancel, `Order/GetOrderStatus` to query status, and `Pool/GetDepth` to read the order book. For public access, expose the service through a gateway with TLS and authentication.
+
+To process fills and cancellations, consume `notice:btc2usdt` from RabbitMQ, deduplicate by `EventID`, and ACK after committing the business update. For a terminal-only demo, run `notice btc2usdt` from the config directory. Use the demo and business consumer separately because they compete for messages on the same queue.
 
 ### Run from source
 
-1. **[Use docker to deploy the operating environment with one click](https://github.com/stingbo/gome-docker)**，Enter the gome container，`docker exec -it gome bash`
+1. Start Redis and RabbitMQ and copy `config.example.yaml` to `config.yaml` in the Gome source directory. Update the connection details before starting Gome.
 
-2. Generated Go sources are checked in. After editing a protocol, run `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto` in `api/` with `protoc-gen-go v1.4.3`.
+2. The repository includes generated Go sources. After editing the protocol, regenerate them in `api/` with `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto` and `protoc-gen-go v1.4.3`.
 
-3. Enter the project directory, copy and modify the configuration: `cd /go/src/gome && cp config.example.yaml config.yaml`
+3. Start the gRPC server：`go run ./cmd/server`
 
-4. Start the gRPC server：`go run ./cmd/server`
+4. Start script to match consumption RabbitMQ queue：`go run ./cmd/match symbol`，symbol is the name of the trading pair，such as btc2usdt，the symbol should be the same as when called by the client
 
-5. Start script to match consumption RabbitMQ queue：`go run ./cmd/match symbol`，symbol is the name of the trading pair，such as btc2usdt，the symbol should be the same as when called by the client
-
-6. Start script consumption match result RabbitMQ queue：`go run ./cmd/notice symbol`.
+5. Start script consumption match result RabbitMQ queue：`go run ./cmd/notice symbol`.
 
 Set `GOME_CONFIG` to override the configuration path. Set `redis.password` if Redis requires authentication. Run `go build ./...` and `go test ./...` locally. Set `GOME_TEST_REDIS_PORT` to run the order-book regression test against an isolated Redis instance.
 

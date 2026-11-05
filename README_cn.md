@@ -4,7 +4,7 @@
 
 ## 依赖
 
-- 具体依赖信息可以查看 **[docker-composer 文件](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
+使用 [Gome Docker v1.0.0](https://github.com/stingbo/gome-docker/releases/tag/v1.0.0) 部署 Gome v1.0.2。按 [Compose 快速部署说明](https://github.com/stingbo/gome-docker/blob/v1.0.0/README.md#快速开始) 一起启动 Gome、Redis 和 RabbitMQ。
 
 ## 安装并运行 v1.0.2
 
@@ -21,29 +21,82 @@ go install github.com/stingbo/gome/cmd/client@v1.0.2
 
 可执行文件安装到 `GOBIN`。未设置时，默认安装到 `$(go env GOPATH)/bin`。将该目录加入 `PATH` 后，可以直接用命令名启动。
 
-启动 Redis 和 RabbitMQ，将 [v1.0.2 示例配置](https://github.com/stingbo/gome/blob/v1.0.2/config.example.yaml) 复制为 `config.yaml`，并填入连接信息。在配置文件所在目录，分别用独立终端运行以下命令。撮合、结果消费和客户端请求应使用同一个交易对。
+### 用 Docker Compose 快速部署
+
+克隆部署仓库的 `v1.0.0` 标签，将其中的 `.env.example` 复制为 `.env` 并填写 `RABBITMQ_PASSWORD`。在该仓库目录运行 `docker compose up -d --build --wait` 启动，再用 `docker compose run --rm client` 查询深度。
+
+### 本机快速开始
+
+用 Docker 启动 Redis 和 RabbitMQ。以下端口和密码用于本机演示。等两个就绪检查通过后再启动 Gome。如果 RabbitMQ 仍在初始化，稍等几秒再执行检查。
 
 ```bash
-server
-match btc2usdt
-notice btc2usdt
+docker run -d --name gome-redis -p 127.0.0.1:16379:6379 \
+  -v gome-redis-data:/data redis:7.4-alpine \
+  redis-server --appendonly yes --appendfsync always \
+  --no-appendfsync-on-rewrite no --maxmemory-policy noeviction
+
+docker run -d --name gome-rabbitmq -p 127.0.0.1:15673:5672 \
+  -v gome-rabbitmq-data:/var/lib/rabbitmq --hostname gome-rabbitmq \
+  -e RABBITMQ_DEFAULT_USER=gome -e RABBITMQ_DEFAULT_PASS=gome-dev rabbitmq:4
+
+docker exec gome-redis redis-cli ping
+docker exec gome-rabbitmq rabbitmq-diagnostics -q check_port_connectivity
 ```
 
-配置文件放在其他目录时，将 `GOME_CONFIG` 设为该文件的绝对路径。
+在工作目录创建 `config.yaml`，内容如下。已有 Redis 和 RabbitMQ 时，可跳过容器启动，并填写实际连接信息。Redis 需要开启下文「消息恢复与升级」列出的持久化设置。
+
+```yaml
+grpc:
+  host: 127.0.0.1
+  port: 8088
+redis:
+  host: 127.0.0.1
+  port: 16379
+  password: ""
+rabbitmq:
+  host: 127.0.0.1
+  port: 15673
+  username: gome
+  password: gome-dev
+gome:
+  accuracy: 8
+```
+
+在配置文件所在目录打开两个终端，分别运行 `server` 和 `match btc2usdt`。配置文件放在其他目录时，在两个终端都将 `GOME_CONFIG` 设为该文件的绝对路径。每个交易对运行一个撮合进程，客户端请求的 `symbol` 要和撮合进程一致。
+
+### 用 grpcurl 下单和查单
+
+安装 [grpcurl](https://github.com/fullstorydev/grpcurl) 后，在第三个终端运行下面两条命令。服务端启用了 gRPC 反射，命令可以直接发现接口。
+
+```bash
+grpcurl -plaintext \
+  -d '{"uuid":"user-1","oid":"order-1001","symbol":"btc2usdt","transaction":"BUY","price":65000,"volume":0.01}' \
+  127.0.0.1:8088 Order/DoOrder
+
+grpcurl -plaintext \
+  -d '{"uuid":"user-1","oid":"order-1001","symbol":"btc2usdt"}' \
+  127.0.0.1:8088 Order/GetOrderStatus
+```
+
+下单成功表示请求已入队。查询若返回 `ORDER_STATUS_QUEUED`，稍后再查一次。空订单簿中的这笔买单会变成 `ORDER_STATUS_OPEN`，剩余数量字段 `remainingVolumeTicks` 为 `"1000000"`，按 `accuracy: 8` 换算就是 0.01。再次试一笔新订单时，同时替换两条命令里的 `oid`。如果是下单超时后重试，保留原订单 ID 和原参数。
+
+### 业务系统接入
+
+把部署后的 gRPC 地址和 [订单接口](api/order.proto)、[深度接口](api/pool.proto) 提供给调用方。调用方可用对应语言生成客户端，调用 `Order/DoOrder` 下单、`Order/DeleteOrder` 撤单、`Order/GetOrderStatus` 查单和 `Pool/GetDepth` 查盘口。跨公网接入时，通过带 TLS 和鉴权的网关提供入口。
+
+需要自动处理成交和撤单回报时，让业务消费者读取 `notice:btc2usdt`，按 `EventID` 去重，业务写入成功后再 ACK。只想在终端查看回报时，可在配置目录运行 `notice btc2usdt`。业务消费者和演示进程应分开使用，以免争抢同一队列的消息。
 
 ### 从源码运行
 
-1. **[使用 docker 一键部署运行环境](https://github.com/stingbo/gome-docker)**，进入 gome 容器，`docker exec -it gome bash`
+1. 启动 Redis 和 RabbitMQ，在 Gome 源码目录将 `config.example.yaml` 复制为 `config.yaml`，并填写连接信息。
 
-2. 仓库已包含生成的 Go 代码。修改协议后，在 `api/` 下使用 `protoc-gen-go v1.4.3` 重新运行 `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto`。
+2. 仓库已包含生成的 Go 代码。修改协议后，在 `api/` 下使用 `protoc-gen-go v1.4.3` 运行 `protoc --go_out=plugins=grpc,paths=source_relative:. *.proto` 重新生成。
 
-3. 进入项目目录，复制并修改配置: `cd /go/src/gome && cp config.example.yaml config.yaml`
+3. 启动 gRPC 服务端：`go run ./cmd/server`
 
-4. 启动 gRPC 服务端：`go run ./cmd/server`
+4. 启动脚本撮合消费 RabbitMQ 队列：`go run ./cmd/match symbol`，symbol 为交易对名称，如 btc2usdt，symbol 要与客户端调用时保持一致
 
-5. 启动脚本撮合消费 RabbitMQ 队列：`go run ./cmd/match symbol`，symbol 为交易对名称，如 btc2usdt，symbol 要与客户端调用时保持一致
-
-6. 启动脚本消费撮合结果 RabbitMQ 队列：`go run ./cmd/notice symbol`.
+5. 启动脚本消费撮合结果 RabbitMQ 队列：`go run ./cmd/notice symbol`.
 
 可用 `GOME_CONFIG` 指定配置文件。Redis 启用密码时请填写 `redis.password`，否则留空。构建和测试可运行 `go build ./...` 和 `go test ./...`。设置 `GOME_TEST_REDIS_PORT` 可在隔离 Redis 实例中运行订单簿回归测试。
 
