@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -11,8 +12,7 @@ import (
 func TestRecoverOrderAndOutbox(t *testing.T) {
 	symbol := configureTestBook(t)
 	command := func(id string, side api.TransactionType, volume float64) OrderNode {
-		node := NewOrderNode(&api.OrderRequest{Uuid: "user", Oid: id, Symbol: symbol, Transaction: side, Price: 1, Volume: volume})
-		node.Action = ADD
+		node := testOrder(t, &api.OrderRequest{Uuid: "user", Oid: id, Symbol: symbol, Transaction: side, Price: 1, Volume: volume})
 		return *node
 	}
 	maker := command("maker", api.TransactionType_SELL, 3)
@@ -37,7 +37,8 @@ func TestRecoverOrderAndOutbox(t *testing.T) {
 	// The broker may accept a publish even if the worker loses its confirmation.
 	var delivered []MatchResult
 	lostConfirmation := errors.New("lost confirmation")
-	send := func(_ context.Context, _ string, result MatchResult) error {
+	send := func(_ context.Context, _, _ string, body []byte) error {
+		result := decodeTestNotice(t, body)
 		delivered = append(delivered, result)
 		if len(delivered) == 1 {
 			return lostConfirmation
@@ -64,9 +65,8 @@ func TestRecoverOrderAndOutbox(t *testing.T) {
 
 func TestOutboxWriteFailureDoesNotChangeBook(t *testing.T) {
 	symbol := configureTestBook(t)
-	maker := NewOrderNode(&api.OrderRequest{Uuid: "user", Oid: "maker", Symbol: symbol, Transaction: api.TransactionType_SELL, Price: 1, Volume: 2})
-	taker := NewOrderNode(&api.OrderRequest{Uuid: "user", Oid: "taker", Symbol: symbol, Price: 1, Volume: 1})
-	maker.Action, taker.Action = ADD, ADD
+	maker := testOrder(t, &api.OrderRequest{Uuid: "user", Oid: "maker", Symbol: symbol, Transaction: api.TransactionType_SELL, Price: 1, Volume: 2})
+	taker := testOrder(t, &api.OrderRequest{Uuid: "user", Oid: "taker", Symbol: symbol, Price: 1, Volume: 1})
 	if err := applyOrder(ctx, *maker); err != nil {
 		t.Fatal(err)
 	}
@@ -104,14 +104,14 @@ func TestMatchFIFOThenRestOnOppositeSideAtSamePrice(t *testing.T) {
 		{"second", api.TransactionType_SELL, 2},
 		{"buy", api.TransactionType_BUY, 4},
 	} {
-		node := NewOrderNode(&api.OrderRequest{Uuid: "user", Oid: order.id, Symbol: symbol, Transaction: order.side, Price: 1, Volume: order.volume})
-		node.Action = ADD
+		node := testOrder(t, &api.OrderRequest{Uuid: "user", Oid: order.id, Symbol: symbol, Transaction: order.side, Price: 1, Volume: order.volume})
 		if err := applyOrder(ctx, *node); err != nil {
 			t.Fatal(err)
 		}
 	}
 	var makers []string
-	err := flushOutbox(ctx, symbol, func(_ context.Context, _ string, event MatchResult) error {
+	err := flushOutbox(ctx, symbol, func(_ context.Context, _, _ string, body []byte) error {
+		event := decodeTestNotice(t, body)
 		makers = append(makers, event.MatchNode.Oid)
 		return nil
 	})
@@ -134,11 +134,10 @@ func TestMatchFIFOThenRestOnOppositeSideAtSamePrice(t *testing.T) {
 
 func TestRedeliveredCancellationDoesNotChangeItsOriginalOutcome(t *testing.T) {
 	symbol := configureTestBook(t)
-	order := NewOrderNode(&api.OrderRequest{Uuid: "user", Oid: "order", Symbol: symbol, Price: 1, Volume: 2})
+	order := testOrder(t, &api.OrderRequest{Uuid: "user", Oid: "order", Symbol: symbol, Price: 1, Volume: 2})
 	cancel := *order
 	cancel.Action = DEL
 	cancel.CommandID = "first-cancel"
-	order.Action = ADD
 	for _, command := range []OrderNode{cancel, *order, cancel} {
 		if err := applyOrder(ctx, command); err != nil {
 			t.Fatal(err)
@@ -154,7 +153,8 @@ func TestRedeliveredCancellationDoesNotChangeItsOriginalOutcome(t *testing.T) {
 		}
 	}
 	var events []MatchResult
-	if err := flushOutbox(ctx, symbol, func(_ context.Context, _ string, event MatchResult) error {
+	if err := flushOutbox(ctx, symbol, func(_ context.Context, _, _ string, body []byte) error {
+		event := decodeTestNotice(t, body)
 		events = append(events, event)
 		return nil
 	}); err != nil {
@@ -163,4 +163,13 @@ func TestRedeliveredCancellationDoesNotChangeItsOriginalOutcome(t *testing.T) {
 	if len(events) != 1 || events[0].Action != DEL || events[0].Node.Volume != order.Volume {
 		t.Fatalf("expected one cancellation event with remaining volume, got %+v", events)
 	}
+}
+
+func decodeTestNotice(t *testing.T, body []byte) MatchResult {
+	t.Helper()
+	var event MatchResult
+	if err := json.Unmarshal(body, &event); err != nil {
+		t.Fatal(err)
+	}
+	return event
 }

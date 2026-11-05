@@ -3,9 +3,9 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"net/url"
 	"strings"
@@ -49,11 +49,19 @@ func publisherChannel() (*amqp.Channel, error) {
 	return publisher.conn.Channel()
 }
 
-func publish(ctx context.Context, queue string, value interface{}) error {
-	body, err := json.Marshal(value)
+func publishOrder(ctx context.Context, order *OrderNode) error {
+	body, err := json.Marshal(order)
 	if err != nil {
 		return err
 	}
+	id := order.Oid
+	if order.Action == DEL {
+		id = order.CommandID
+	}
+	return publishMessage(ctx, order.Symbol, id, body)
+}
+
+func publishMessage(ctx context.Context, queue, id string, body []byte) error {
 	channel, err := publisherChannel()
 	if err != nil {
 		return err
@@ -72,7 +80,7 @@ func publish(ctx context.Context, queue string, value interface{}) error {
 		ContentType:  "application/json",
 		Body:         body,
 		DeliveryMode: amqp.Persistent,
-		MessageId:    messageID(value),
+		MessageId:    id,
 	}); err != nil {
 		return err
 	}
@@ -98,20 +106,6 @@ func publish(ctx context.Context, queue string, value interface{}) error {
 	}
 }
 
-func messageID(value interface{}) string {
-	switch message := value.(type) {
-	case MatchResult:
-		return message.EventID
-	case *OrderNode:
-		if message.Action == DEL {
-			return message.CommandID
-		}
-		return message.Oid
-	default:
-		return ""
-	}
-}
-
 func declareQueue(channel *amqp.Channel, queue string) error {
 	_, err := channel.QueueDeclare(queue, true, false, false, false, nil)
 	return err
@@ -122,9 +116,7 @@ func ConsumeNewOrder(ctx context.Context, symbol string) error {
 		return fmt.Errorf("invalid symbol")
 	}
 	for {
-		err := consumeOrders(ctx, symbol, func(ctx context.Context, queue string, result MatchResult) error {
-			return publish(ctx, queue, result)
-		})
+		err := consumeOrders(ctx, symbol, publishMessage)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -137,7 +129,7 @@ func ConsumeNewOrder(ctx context.Context, symbol string) error {
 	}
 }
 
-func consumeOrders(ctx context.Context, symbol string, send func(context.Context, string, MatchResult) error) error {
+func consumeOrders(ctx context.Context, symbol string, send noticeSender) error {
 	if err := checkRedisPersistence(ctx); err != nil {
 		return err
 	}
@@ -145,6 +137,11 @@ func consumeOrders(ctx context.Context, symbol string, send func(context.Context
 		return flushOutbox(ctx, symbol, send)
 	}, func(delivery amqp.Delivery) error {
 		order, err := decodeOrder(symbol, delivery.Body)
+		if errors.Is(err, errInvalidTicks) {
+			// A legacy order may have been acknowledged by an older producer.
+			// Leave it unacked so migration can reconcile it without losing it.
+			return err
+		}
 		if err != nil {
 			log.Printf("reject order in %s: %v", symbol, err)
 			return delivery.Reject(false)
@@ -168,9 +165,11 @@ func decodeOrder(symbol string, body []byte) (OrderNode, error) {
 		(order.Transaction != 0 && order.Transaction != 1) ||
 		strings.TrimSpace(order.Uuid) == "" || strings.TrimSpace(order.Oid) == "" ||
 		strings.Contains(order.Uuid, ":") || strings.Contains(order.Oid, ":") ||
-		!(order.Price > 0) || math.IsInf(order.Price, 0) ||
-		(order.Action == ADD && !(order.Volume > 0)) {
+		order.Price <= 0 || (order.Action == ADD && order.Volume <= 0) {
 		return order, fmt.Errorf("invalid order for queue %s", symbol)
+	}
+	if order.Price > maxOrderTicks || (order.Action == ADD && order.Volume > maxOrderTicks) {
+		return order, errInvalidTicks
 	}
 	order.SetListSortSetKey()
 	order.SetDepthHashKey()
@@ -181,12 +180,18 @@ func decodeOrder(symbol string, body []byte) (OrderNode, error) {
 
 func ConsumeMatchOrder(symbol string) error {
 	return consume(ctx, "notice:"+symbol, false, nil, func(delivery amqp.Delivery) error {
-		var result MatchResult
+		var result struct {
+			EventID         string
+			Action          int8
+			Node, MatchNode struct{ Oid string }
+			MatchVolume     json.Number
+			MatchTime       string
+		}
 		if err := json.Unmarshal(delivery.Body, &result); err != nil {
 			log.Printf("reject notice for %s: %v", symbol, err)
 			return delivery.Reject(false)
 		}
-		log.Printf("order result: id=%s symbol=%s action=%d order=%s counterparty=%s volume=%g time=%s",
+		log.Printf("order result: id=%s symbol=%s action=%d order=%s counterparty=%s volume=%s time=%s",
 			result.EventID, symbol, result.Action, result.Node.Oid, result.MatchNode.Oid, result.MatchVolume, result.MatchTime)
 		return delivery.Ack(false)
 	})

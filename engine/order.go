@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log"
-	"math"
 	"regexp"
 	"strings"
 )
@@ -16,14 +15,12 @@ import (
 type Order struct{}
 
 func (o Order) DoOrder(ctx context.Context, request *api.OrderRequest) (*api.OrderResponse, error) {
-	if err := validateOrder(request, true); err != nil {
+	orderNode, err := makeOrder(request, ADD, Conf.MeConf.Accuracy)
+	if err != nil {
 		return nil, err
 	}
-	// 实例化撮合所需要的node
-	orderNode := NewOrderNode(request)
-	orderNode.Action = ADD
 	// 下单队列
-	if err := publish(ctx, orderNode.Symbol, orderNode); err != nil {
+	if err := publishOrder(ctx, orderNode); err != nil {
 		log.Printf("publish order command for %s: %v", orderNode.Symbol, err)
 		return nil, status.Error(codes.Unavailable, "order queue unavailable")
 	}
@@ -33,15 +30,10 @@ func (o Order) DoOrder(ctx context.Context, request *api.OrderRequest) (*api.Ord
 }
 
 func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api.OrderResponse, error) {
-	if err := validateOrder(request, false); err != nil {
+	orderNode, err := makeOrder(request, DEL, Conf.MeConf.Accuracy)
+	if err != nil {
 		return nil, err
 	}
-	// 实例化撮合所需要的node
-	orderNode := NewOrderNode(&api.OrderRequest{
-		Uuid: request.Uuid, Oid: request.Oid, Symbol: request.Symbol,
-		Transaction: request.Transaction, Price: request.Price,
-	})
-	orderNode.Action = DEL
 	var commandID [16]byte
 	if _, err := rand.Read(commandID[:]); err != nil {
 		return nil, status.Error(codes.Internal, "cannot generate cancellation ID")
@@ -49,7 +41,7 @@ func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api
 	orderNode.CommandID = hex.EncodeToString(commandID[:])
 
 	// 删除队列
-	if err := publish(ctx, orderNode.Symbol, orderNode); err != nil {
+	if err := publishOrder(ctx, orderNode); err != nil {
 		log.Printf("publish order command for %s: %v", orderNode.Symbol, err)
 		return nil, status.Error(codes.Unavailable, "order queue unavailable")
 	}
@@ -60,24 +52,28 @@ func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api
 
 var symbolPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 
-func validateOrder(request *api.OrderRequest, add bool) error {
+func makeOrder(request *api.OrderRequest, action int8, accuracy int) (*OrderNode, error) {
 	if request == nil || !symbolPattern.MatchString(request.Symbol) {
-		return status.Error(codes.InvalidArgument, "invalid symbol")
+		return nil, status.Error(codes.InvalidArgument, "invalid symbol")
 	}
 	for _, id := range []string{request.Uuid, request.Oid} {
 		if strings.TrimSpace(id) == "" || len(id) > 128 || strings.Contains(id, ":") {
-			return status.Error(codes.InvalidArgument, "invalid user or order ID")
+			return nil, status.Error(codes.InvalidArgument, "invalid user or order ID")
 		}
 	}
 	if request.Transaction != api.TransactionType_BUY && request.Transaction != api.TransactionType_SELL {
-		return status.Error(codes.InvalidArgument, "invalid order side")
+		return nil, status.Error(codes.InvalidArgument, "invalid order side")
 	}
-	scale := math.Pow10(Conf.MeConf.Accuracy)
-	if !(request.Price > 0 && request.Price*scale <= (1<<53)-1) {
-		return status.Error(codes.InvalidArgument, "price must be positive and within range")
+	price, err := toOrderTicks(request.Price, accuracy)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "price must be positive and a whole tick within range")
 	}
-	if add && !(request.Volume > 0 && request.Volume*scale <= (1<<53)-1) {
-		return status.Error(codes.InvalidArgument, "volume must be positive and within range")
+	var volume ticks
+	if action == ADD {
+		volume, err = toOrderTicks(request.Volume, accuracy)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "volume must be positive and a whole tick within range")
+		}
 	}
-	return nil
+	return newOrderNode(request, action, accuracy, price, volume), nil
 }

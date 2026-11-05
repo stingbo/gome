@@ -54,8 +54,8 @@ func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
 	// Make the real broker accept a notice, then simulate a worker disconnect
 	// before the confirmation is recorded in Redis or the order is ACKed.
 	disconnected := errors.New("simulated worker disconnect")
-	send := func(ctx context.Context, queue string, result MatchResult) error {
-		if err := publish(ctx, queue, result); err != nil {
+	send := func(ctx context.Context, queue, id string, body []byte) error {
+		if err := publishMessage(ctx, queue, id, body); err != nil {
 			return err
 		}
 		return disconnected
@@ -75,9 +75,7 @@ func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
 	workerCtx, stopWorker := context.WithCancel(request)
 	stopped := make(chan error, 1)
 	go func() {
-		stopped <- consumeOrders(workerCtx, symbol, func(ctx context.Context, queue string, result MatchResult) error {
-			return publish(ctx, queue, result)
-		})
+		stopped <- consumeOrders(workerCtx, symbol, publishMessage)
 	}()
 	defer func() {
 		stopWorker()
@@ -108,7 +106,7 @@ func TestRabbitMQRedeliveryAndOutboxRecovery(t *testing.T) {
 		first.MessageId != replay.MessageId || string(first.Body) != string(replay.Body) {
 		t.Fatalf("notice replay changed identity or payload: %q, %q", first.MessageId, replay.MessageId)
 	}
-	if remaining := readFirst(t, NewOrderNode(maker)).Volume; remaining != 1e8 {
+	if remaining := readFirst(t, testOrder(t, maker)).Volume; remaining != 1e8 {
 		t.Fatalf("order redelivery matched twice: %v", remaining)
 	}
 }

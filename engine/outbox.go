@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -20,7 +21,9 @@ end
 return ""
 `)
 
-func flushOutbox(ctx context.Context, symbol string, send func(context.Context, string, MatchResult) error) error {
+type noticeSender func(context.Context, string, string, []byte) error
+
+func flushOutbox(ctx context.Context, symbol string, send noticeSender) error {
 	key := outboxKey(symbol)
 	for {
 		raw, err := cache.LIndex(ctx, key, 0).Result()
@@ -30,11 +33,16 @@ func flushOutbox(ctx context.Context, symbol string, send func(context.Context, 
 		if err != nil {
 			return err
 		}
-		var event MatchResult
-		if err := json.Unmarshal([]byte(raw), &event); err != nil {
+		body := []byte(raw)
+		var event struct{ EventID string }
+		if err := json.Unmarshal(body, &event); err != nil {
 			return err
 		}
-		if err := send(ctx, "notice:"+symbol, event); err != nil {
+		if event.EventID == "" {
+			return fmt.Errorf("missing event ID in outbox %s", key)
+		}
+		// Forward historical notices unchanged, even if they contain fractional ticks.
+		if err := send(ctx, "notice:"+symbol, event.EventID, body); err != nil {
 			return err
 		}
 		if err := removeConfirmed.Run(ctx, cache, []string{key}, raw).Err(); err != nil {

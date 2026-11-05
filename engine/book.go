@@ -5,18 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/shopspring/decimal"
 	"gome/api"
 )
 
 type levelUpdate struct {
 	level  *priceLevel
 	order  OrderNode
-	volume decimal.Decimal
+	volume *big.Int
 }
 
 type bookUpdate struct {
@@ -90,7 +90,7 @@ func (update *bookUpdate) add(ctx context.Context, tx *redis.Tx, order OrderNode
 		return err
 	}
 
-	price := strconv.FormatFloat(order.Price, 'f', -1, 64)
+	price := order.Price.String()
 	var prices []string
 	if order.Transaction == int32(api.TransactionType_SELL) {
 		prices, err = tx.ZRevRangeByScore(ctx, order.OrderListSortSetRKey, &redis.ZRangeBy{Min: price, Max: "+inf"}).Result()
@@ -102,9 +102,12 @@ func (update *bookUpdate) add(ctx context.Context, tx *redis.Tx, order OrderNode
 	}
 	for _, price := range prices {
 		maker := order
-		maker.Price, err = strconv.ParseFloat(price, 64)
+		maker.Price, err = parseTicks(price)
 		if err != nil {
 			return err
+		}
+		if maker.Price <= 0 || maker.Price > maxOrderTicks {
+			return fmt.Errorf("price level %s: %w", price, errInvalidTicks)
 		}
 		maker.Transaction = 1 - order.Transaction
 		maker.SetListSortSetKey()
@@ -133,13 +136,13 @@ func (update *bookUpdate) add(ctx context.Context, tx *redis.Tx, order OrderNode
 		last := update.levels[len(update.levels)-1]
 		if last.level.key == own.level.key {
 			own.level = &priceLevel{key: last.level.key, changes: make(map[string]*OrderNode)}
-			own.volume = decimal.Zero
+			own.volume.SetInt64(0)
 		}
 	}
 	if err := own.level.append(ctx, tx, order); err != nil {
 		return err
 	}
-	own.volume = own.volume.Add(decimal.NewFromFloat(order.Volume))
+	own.volume.Add(own.volume, big.NewInt(int64(order.Volume)))
 	update.levels = append(update.levels, own)
 	return nil
 }
@@ -153,21 +156,25 @@ func (update *bookUpdate) matchLevel(ctx context.Context, tx *redis.Tx, order *O
 		if maker == nil || maker.Transaction == order.Transaction || maker.PrevNode != "" {
 			return fmt.Errorf("invalid maker at %s", level.level.key)
 		}
-		remaining := decimal.NewFromFloat(order.Volume)
-		available := decimal.NewFromFloat(maker.Volume)
-		filled := decimal.Min(remaining, available)
-		volume, _ := filled.Float64()
-		order.Volume, _ = remaining.Sub(filled).Float64()
-		level.volume = level.volume.Sub(filled)
-		if filled.Equal(available) {
+		filled := maker.Volume
+		if order.Volume < filled {
+			filled = order.Volume
+		}
+		quantity := big.NewInt(int64(filled))
+		if level.volume.Cmp(quantity) < 0 {
+			return fmt.Errorf("trade volume exceeds depth at %s", level.level.key)
+		}
+		order.Volume -= filled
+		level.volume.Sub(level.volume, quantity)
+		if filled == maker.Volume {
 			if err := level.level.remove(ctx, tx, maker); err != nil {
 				return err
 			}
 		} else {
-			maker.Volume, _ = available.Sub(filled).Float64()
+			maker.Volume -= filled
 			level.level.changes[maker.NodeName] = maker
 		}
-		update.event(ADD, *order, *maker, volume)
+		update.event(ADD, *order, *maker, filled)
 	}
 	return nil
 }
@@ -188,13 +195,17 @@ func (update *bookUpdate) cancel(ctx context.Context, tx *redis.Tx, order OrderN
 		return err
 	}
 	order.Volume = resting.Volume
-	level.volume = level.volume.Sub(decimal.NewFromFloat(resting.Volume))
+	quantity := big.NewInt(int64(resting.Volume))
+	if level.volume.Cmp(quantity) < 0 {
+		return fmt.Errorf("cancel volume exceeds depth at %s", level.level.key)
+	}
+	level.volume.Sub(level.volume, quantity)
 	update.levels = append(update.levels, level)
 	update.event(DEL, order, order, 0)
 	return nil
 }
 
-func (update *bookUpdate) event(action int8, order, maker OrderNode, volume float64) {
+func (update *bookUpdate) event(action int8, order, maker OrderNode, volume ticks) {
 	identity, _ := json.Marshal([4]string{order.Symbol, strconv.Itoa(int(action)), order.Oid, maker.Oid})
 	update.events = append(update.events, MatchResult{
 		EventID: fmt.Sprintf("%x", sha256.Sum256(identity)),
@@ -209,17 +220,20 @@ func readLevel(ctx context.Context, tx *redis.Tx, order OrderNode) (*levelUpdate
 		return nil, err
 	}
 	raw, err := tx.HGet(ctx, order.OrderDepthHashKey, order.OrderDepthHashField).Result()
-	volume := decimal.Zero
+	volume := new(big.Int)
 	if err != redis.Nil {
 		if err != nil {
 			return nil, err
 		}
-		volume, err = decimal.NewFromString(raw)
+		volume, err = parseDepthTicks(raw)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if err := tx.ZScore(ctx, order.OrderListSortSetKey, strconv.FormatFloat(order.Price, 'f', -1, 64)).Err(); err != nil && err != redis.Nil {
+	if volume.Sign() < 0 {
+		return nil, fmt.Errorf("negative depth at %s", level.key)
+	}
+	if err := tx.ZScore(ctx, order.OrderListSortSetKey, order.Price.String()).Err(); err != nil && err != redis.Nil {
 		return nil, err
 	}
 	return &levelUpdate{level: level, order: order, volume: volume}, nil
@@ -232,13 +246,13 @@ func (update *levelUpdate) write(ctx context.Context, pipe redis.Pipeliner) erro
 	order := update.order
 	if update.level.first == "" {
 		pipe.HDel(ctx, order.OrderDepthHashKey, order.OrderDepthHashField)
-		pipe.ZRem(ctx, order.OrderListSortSetKey, order.Price)
+		pipe.ZRem(ctx, order.OrderListSortSetKey, order.Price.String())
 		return nil
 	}
-	if !update.volume.IsPositive() {
+	if update.volume.Sign() <= 0 {
 		return fmt.Errorf("nonpositive depth at %s", update.level.key)
 	}
 	pipe.HSet(ctx, order.OrderDepthHashKey, order.OrderDepthHashField, update.volume.String())
-	pipe.ZAdd(ctx, order.OrderListSortSetKey, &redis.Z{Score: order.Price, Member: order.Price})
+	pipe.ZAdd(ctx, order.OrderListSortSetKey, &redis.Z{Score: float64(order.Price), Member: order.Price.String()})
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"gome/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"strconv"
+	"math/big"
 )
 
 type Pool struct {
@@ -21,8 +21,9 @@ func (pl *Pool) GetDepth(requestCtx context.Context, request *api.DepthRequest) 
 	if request.Transaction != api.DepthRequest_BUY && request.Transaction != api.DepthRequest_SELL {
 		return nil, status.Error(codes.InvalidArgument, "only single-side depth is supported")
 	}
-	order := api.OrderRequest{Uuid: "", Oid: "", Symbol: request.Symbol, Transaction: api.TransactionType(request.Transaction), Price: 0, Volume: 0}
-	node := NewOrderNode(&order)
+	node := OrderNode{Symbol: request.Symbol, Transaction: int32(request.Transaction)}
+	node.SetListSortSetKey()
+	node.SetDepthHashKey()
 
 	total, err := cache.ZCard(requestCtx, node.OrderListSortSetKey).Result()
 	if err != nil {
@@ -66,13 +67,14 @@ func (pl *Pool) GetDepth(requestCtx context.Context, request *api.DepthRequest) 
 			if !ok {
 				continue
 			}
-			p, priceErr := strconv.ParseFloat(price, 64)
-			v, volumeErr := strconv.ParseFloat(rawVolume, 64)
+			p, priceErr := parseTicks(price)
+			v, volumeErr := parseDepthTicks(rawVolume)
 			if priceErr != nil || volumeErr != nil {
 				return nil, status.Error(codes.Internal, "invalid order book depth")
 			}
-			if v > 0 {
-				data = append(data, &api.Depth{P: p, V: v})
+			if v.Sign() > 0 {
+				volume, _ := new(big.Float).SetInt(v).Float64()
+				data = append(data, &api.Depth{P: float64(p), V: volume})
 			}
 		}
 	}

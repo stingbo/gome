@@ -31,10 +31,9 @@ func configureTestBook(t *testing.T) string {
 func TestOrderBook(t *testing.T) {
 	symbol := configureTestBook(t)
 	add := func(id string, price float64) *OrderNode {
-		node := NewOrderNode(&api.OrderRequest{
+		node := testOrder(t, &api.OrderRequest{
 			Uuid: "user", Oid: id, Symbol: symbol, Transaction: api.TransactionType_SELL, Price: price, Volume: 2,
 		})
-		node.Action = ADD
 		if err := applyOrder(ctx, *node); err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +52,7 @@ func TestOrderBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(depth.Data) != 1 || depth.Data[0].P != node.Price || depth.Data[0].V != node.Volume {
+	if len(depth.Data) != 1 || depth.Data[0].P != float64(node.Price) || depth.Data[0].V != float64(node.Volume) {
 		t.Fatalf("expected best ask with original volume, got %v", depth)
 	}
 }
@@ -73,4 +72,13 @@ func readFirst(t *testing.T, node *OrderNode) OrderNode {
 		t.Fatal(err)
 	}
 	return resting
+}
+
+func testOrder(t *testing.T, req *api.OrderRequest) *OrderNode {
+	t.Helper()
+	order, err := makeOrder(req, ADD, Conf.MeConf.Accuracy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return order
 }

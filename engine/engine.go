@@ -26,7 +26,7 @@ type MatchResult struct {
 	Action      int8
 	Node        OrderNode
 	MatchNode   OrderNode
-	MatchVolume float64
+	MatchVolume ticks
 	MatchTime   string
 }
 

@@ -34,6 +34,12 @@ When upgrading from the old non-durable queues, stop old publishers and drain bo
 
 To run the broker recovery test, set both `GOME_TEST_REDIS_PORT` and `GOME_TEST_RABBITMQ_PORT` to local ports for isolated instances. Enable the Redis settings above and set the RabbitMQ test username and password to `gome-test`. Run `go test -race ./engine`.
 
+## Matching precision
+
+Prices and quantities must be positive whole ticks at the configured `gome.accuracy`. For example, a scale of 8 means a tick of `0.00000001`. Off-tick values and values above `2^53 - 1` ticks per order field return `InvalidArgument`. The gRPC fields remain doubles, with order inputs in business units and depth output in scaled units.
+
+Keep the existing scale during upgrades. Existing integral tick values can be read directly, and historical notices are replayed as stored. Reconcile any fractional tick values in open orders, depth, or queued commands before switching workers.
+
 ## Description
 
 * gome Catalog description：
