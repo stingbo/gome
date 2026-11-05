@@ -2,6 +2,5 @@
 test.sql
 config.ini
 config.yaml
-api/*.go
 gomengine/*.log
 *.log

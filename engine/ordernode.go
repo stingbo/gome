@@ -35,7 +35,7 @@ type OrderNode struct {
 	OrderDepthHashField string
 }
 
-func NewOrderNode(order api.OrderRequest) *OrderNode {
+func NewOrderNode(order *api.OrderRequest) *OrderNode {
 	node := &OrderNode{}
 	node.SetAccuracy()
 	node.SetUuid(order)
@@ -57,30 +57,30 @@ func (node *OrderNode) SetAccuracy() {
 	node.Accuracy = Conf.MeConf.Accuracy
 }
 
-func (node *OrderNode) SetUuid(order api.OrderRequest) {
+func (node *OrderNode) SetUuid(order *api.OrderRequest) {
 	node.Uuid = order.Uuid
 }
 
-func (node *OrderNode) SetOid(order api.OrderRequest) {
+func (node *OrderNode) SetOid(order *api.OrderRequest) {
 	node.Oid = order.Oid
 }
 
-func (node *OrderNode) SetSymbol(order api.OrderRequest) {
+func (node *OrderNode) SetSymbol(order *api.OrderRequest) {
 	node.Symbol = order.Symbol
 }
 
-func (node *OrderNode) SetTransaction(order api.OrderRequest) {
+func (node *OrderNode) SetTransaction(order *api.OrderRequest) {
 	node.Transaction = int32(order.Transaction)
 }
 
-func (node *OrderNode) SetVolume(order api.OrderRequest) {
+func (node *OrderNode) SetVolume(order *api.OrderRequest) {
 	volume := decimal.NewFromFloat(order.Volume)
 	mul := decimal.NewFromFloat(math.Pow10(node.Accuracy))
 
 	node.Volume, _ = volume.Mul(mul).Float64()
 }
 
-func (node *OrderNode) SetPrice(order api.OrderRequest) {
+func (node *OrderNode) SetPrice(order *api.OrderRequest) {
 	volume := decimal.NewFromFloat(order.Price)
 	mul := decimal.NewFromFloat(math.Pow10(node.Accuracy))
 	node.Price, _ = volume.Mul(mul).Float64()

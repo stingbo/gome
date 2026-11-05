@@ -45,11 +45,11 @@ func UnaryServerInterceptor(logger *zap.Logger, opts ...Option) grpc.UnaryServer
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		startTime := time.Now()
 
-		reqInfo := req.(proto.Message)
+		reqInfo, _ := req.(proto.Message)
 		newCtx := newLoggerForCall(ctx, logger, info.FullMethod, startTime)
 
 		resp, err := handler(newCtx, req)
-		respInfo := resp.(proto.Message)
+		respInfo, _ := resp.(proto.Message)
 		if !o.shouldLog(info.FullMethod, err) {
 			return resp, err
 		}

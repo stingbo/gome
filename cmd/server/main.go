@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	_ "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -19,13 +17,16 @@ import (
 )
 
 func main() {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-		}
-	}()
-	rpcListener := rpc.NewRpcListener()
-	listener := rpcListener.Listener
+	config, err := utils.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	engine.Configure(config)
+	listener, err := rpc.NewRpcListener(config.GRPCConf)
+	if err != nil {
+		log.Fatalf("listen for gRPC: %v", err)
+	}
+	defer listener.Close()
 
 	rpcServer := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(

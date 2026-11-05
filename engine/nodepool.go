@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"gome/api"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"strconv"
 )
 
@@ -12,12 +14,20 @@ type Pool struct {
 }
 
 // 获取深度列表.
-func (pl *Pool) GetDepth(ctx2 context.Context, request *api.DepthRequest) (*api.DepthResponse, error) {
+func (pl *Pool) GetDepth(requestCtx context.Context, request *api.DepthRequest) (*api.DepthResponse, error) {
+	if request == nil || !symbolPattern.MatchString(request.Symbol) {
+		return nil, status.Error(codes.InvalidArgument, "invalid symbol")
+	}
+	if request.Transaction != api.DepthRequest_BUY && request.Transaction != api.DepthRequest_SELL {
+		return nil, status.Error(codes.InvalidArgument, "only single-side depth is supported")
+	}
 	order := api.OrderRequest{Uuid: "", Oid: "", Symbol: request.Symbol, Transaction: api.TransactionType(request.Transaction), Price: 0, Volume: 0}
-	node := NewOrderNode(order)
-	pool := Pool{Node: node}
+	node := NewOrderNode(&order)
 
-	total := pool.GetDepthTotal()
+	total, err := cache.ZCard(requestCtx, node.OrderListSortSetKey).Result()
+	if err != nil {
+		return nil, status.Error(codes.Unavailable, "order book unavailable")
+	}
 	offset := request.Offset
 	// 偏移量只能从0开始
 	if offset < 0 {
@@ -29,46 +39,63 @@ func (pl *Pool) GetDepth(ctx2 context.Context, request *api.DepthRequest) (*api.
 		count = 20
 	}
 	rangeBy := redis.ZRangeBy{Min: "-inf", Max: "+inf", Offset: offset, Count: count}
-	res := cache.ZRevRangeByScore(ctx, pool.Node.OrderListSortSetKey, &rangeBy)
-	prices := res.Val()
+	var res *redis.StringSliceCmd
+	if request.Transaction == api.DepthRequest_SELL {
+		res = cache.ZRangeByScore(requestCtx, node.OrderListSortSetKey, &rangeBy)
+	} else {
+		res = cache.ZRevRangeByScore(requestCtx, node.OrderListSortSetKey, &rangeBy)
+	}
+	prices, err := res.Result()
+	if err != nil {
+		return nil, status.Error(codes.Unavailable, "order book unavailable")
+	}
 
 	var data []*api.Depth
-	for _, p := range prices {
-		vols := cache.HGet(ctx, pool.Node.OrderDepthHashKey, pool.Node.OrderDepthHashKey+":"+p)
-		price, _ := strconv.ParseFloat(p, 64)
-		volume, _ := strconv.ParseFloat(vols.Val(), 64)
-
-		depth := api.Depth{P: price, V: volume}
-		data = append(data, &depth)
+	if len(prices) > 0 {
+		fields := make([]string, len(prices))
+		for i, price := range prices {
+			fields[i] = node.OrderDepthHashKey + ":" + price
+		}
+		volumes, err := cache.HMGet(requestCtx, node.OrderDepthHashKey, fields...).Result()
+		if err != nil {
+			return nil, status.Error(codes.Unavailable, "order book unavailable")
+		}
+		data = make([]*api.Depth, 0, len(prices))
+		for i, price := range prices {
+			rawVolume, ok := volumes[i].(string)
+			if !ok {
+				continue
+			}
+			p, priceErr := strconv.ParseFloat(price, 64)
+			v, volumeErr := strconv.ParseFloat(rawVolume, 64)
+			if priceErr != nil || volumeErr != nil {
+				return nil, status.Error(codes.Internal, "invalid order book depth")
+			}
+			if v > 0 {
+				data = append(data, &api.Depth{P: p, V: v})
+			}
+		}
 	}
 
 	response := &api.DepthResponse{
-		Code: 0,
+		Code:    0,
 		Message: "获取成功",
-		Total: total,
-		Data: data,
+		Total:   total,
+		Data:    data,
 	}
 
 	return response, nil
 }
 
-func (pl *Pool) SetPrePool() {
-	cache.HSet(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField, 1)
-}
-
-func (pl *Pool) ExistsPrePool() bool {
-	exists := cache.HExists(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
-
-	return exists.Val()
+func (pl *Pool) SetPrePool(ctx context.Context) error {
+	return cache.HSet(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField, 1).Err()
 }
 
 func (pl *Pool) DeletePrePool() {
-	if true == pl.ExistsPrePool() {
-		cache.HDel(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
-	}
+	cache.HDel(ctx, pl.Node.OrderHashKey, pl.Node.OrderHashField)
 }
 
-//放入价格点对应的深度池
+// 放入价格点对应的深度池
 func (pl *Pool) SetDepthLink() bool {
 	link := &NodeLink{Node: pl.Node}
 	first := link.GetFirstNode()
@@ -86,7 +113,7 @@ func (pl *Pool) SetDepthLink() bool {
 	return true
 }
 
-//从价格点对应的深度链删除
+// 从价格点对应的深度链删除
 func (pl *Pool) DeleteDepthLink() bool {
 	link := &NodeLink{Node: pl.Node, Current: pl.Node}
 	current := link.GetCurrent()
@@ -135,28 +162,12 @@ func (pl *Pool) GetDoubleSideDepth(offset int64, count int64) {
 }
 
 // 获取反向深度列表.
-func (pl *Pool) GetReverseDepth() [][]string {
-	var depths [][]string
+func (pl *Pool) GetReverseDepth() []string {
 	price := strconv.FormatFloat(pl.Node.Price, 'f', -1, 64)
-	if api.TransactionType_value["SELL"] == pl.Node.Transaction {
-		rangeBy := redis.ZRangeBy{Min: price, Max: "+inf"}
-		res := cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetRKey, &rangeBy)
-		prices := res.Val()
-		for _, p := range prices {
-			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
-			data := []string{p, vols.Val()}
-			depths = append(depths, data)
-		}
-	} else {
-		rangeBy := redis.ZRangeBy{Min: "-inf", Max: price}
-		res := cache.ZRangeByScore(ctx, pl.Node.OrderListSortSetRKey, &rangeBy)
-		prices := res.Val()
-		for _, p := range prices {
-			vols := cache.HGet(ctx, pl.Node.OrderDepthHashKey, pl.Node.OrderDepthHashKey+":"+p)
-			data := []string{p, vols.Val()}
-			depths = append(depths, data)
-		}
+	if pl.Node.Transaction == int32(api.TransactionType_SELL) {
+		return cache.ZRevRangeByScore(ctx, pl.Node.OrderListSortSetRKey,
+			&redis.ZRangeBy{Min: price, Max: "+inf"}).Val()
 	}
-
-	return depths
+	return cache.ZRangeByScore(ctx, pl.Node.OrderListSortSetRKey,
+		&redis.ZRangeBy{Min: "-inf", Max: price}).Val()
 }

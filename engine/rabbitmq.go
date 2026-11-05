@@ -1,185 +1,148 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/streadway/amqp"
 	"log"
+	"net"
+	"net/url"
+	"sync"
+	"time"
+
+	"github.com/streadway/amqp"
 )
 
-type RabbitMQ struct {
-	conn      *amqp.Connection
-	channel   *amqp.Channel
-	Queuename string // 列表名
-	Exchange  string // 交换机
-	Key       string
-	MQurl     string
+var publisher struct {
+	sync.Mutex
+	conn *amqp.Connection
 }
 
-func NewRabbitMq(queueName, exchage, key string) *RabbitMQ {
-	host := Conf.MQconf.Host
-	port := Conf.MQconf.Port
-	username := Conf.MQconf.Username
-	password := Conf.MQconf.Password
-	// MQURL 格式 amqp://账号:密码@rabbitmq服务器地址:端口号/vhost
-	MQurl := "amqp://" + username + ":" + password + "@" + host + ":" + port + "/"
-
-	rabbitMq := &RabbitMQ{
-		Queuename: queueName,
-		Exchange:  exchage,
-		Key:       key,
-		MQurl:     MQurl,
+func dialRabbitMQ() (*amqp.Connection, error) {
+	config := Conf.MQconf
+	address := url.URL{
+		Scheme: "amqp",
+		User:   url.UserPassword(config.Username, config.Password),
+		Host:   net.JoinHostPort(config.Host, config.Port),
+		Path:   "/",
 	}
-	var err error
-	rabbitMq.conn, err = amqp.Dial(rabbitMq.MQurl)
-	rabbitMq.failOnErr(err, "连接MQ错误")
-
-	rabbitMq.channel, err = rabbitMq.conn.Channel()
-	rabbitMq.failOnErr(err, "获取channel失败")
-
-	return rabbitMq
-}
-
-func (r *RabbitMQ) failOnErr(err error, message string) {
+	conn, err := amqp.DialConfig(address.String(), amqp.Config{Dial: amqp.DefaultDial(5 * time.Second)})
 	if err != nil {
-		log.Fatalf("%s:%s", message, err)
-		panic(fmt.Sprintf("%s:%s", message, err))
+		return nil, fmt.Errorf("connect to RabbitMQ: %w", err)
 	}
+	return conn, nil
 }
 
-func (r *RabbitMQ) Destory() {
-	_ = r.channel.Close()
-	_ = r.conn.Close()
-}
+func publisherChannel() (*amqp.Channel, error) {
+	publisher.Lock()
+	defer publisher.Unlock()
 
-func NewSimpleRabbitMQ(queueName string) *RabbitMQ {
-	return NewRabbitMq(queueName, "", "")
-}
-
-func (r *RabbitMQ) PublishNewOrder(message []byte) {
-	//1. 申请队列，如果队列不存在会自动创建，如何存在则跳过创建
-	_, err := r.channel.QueueDeclare(
-		r.Queuename,
-		false, // 是否持久化
-		false, // 是否自动删除
-		false, // 是否具有排他性？
-		false, // 是否阻塞
-		nil,   // 其它属性
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	r.channel.Publish(
-		r.Exchange,
-		r.Queuename,
-		false, // 如果为true, 会根据exchange类型和routkey规则，如果无法找到符合条件的队列那么会把发送的消息返回给发送者
-		false, // 如果为true, 当exchange发送消息到队列后发现队列上没有绑定消费者，则会把消息发还给发送者
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(message),
-		},
-	)
-}
-
-func (r *RabbitMQ) ConsumeNewOrder() {
-	_, err := r.channel.QueueDeclare(
-		r.Queuename,
-		false, // 是否持久化
-		false, // 是否自动删除
-		false, // 是否具有排他性？
-		false, // 是否阻塞
-		nil,   // 其它属性
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	messages, err := r.channel.Consume(
-		r.Queuename,
-		"",    // 用来区分多个消费者
-		true,  // 是否自动应答
-		false, // 是否具有排他性
-		false, // 如果设置为true，表示不能将同一个connection中发送的消息传递给这个connection中的消费者
-		false, // 队列消费是否阻塞
-		nil,
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	forever := make(chan bool)
-	if Debug {
-		log.Printf("[*] Waiting for message, To exit press CTRL+C")
-	}
-	// 启用协程处理消息
-	//go func() {
-	for d := range messages {
-		order := OrderNode{}
-		err := json.Unmarshal(d.Body, &order)
+	if publisher.conn == nil || publisher.conn.IsClosed() {
+		conn, err := dialRabbitMQ()
 		if err != nil {
-			fmt.Println(err)
+			return nil, err
 		}
-		if Debug {
-			fmt.Printf("来源数据----------:%#v\n", order)
+		publisher.conn = conn
+	}
+	return publisher.conn.Channel()
+}
+
+func publish(ctx context.Context, queue string, value interface{}) error {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	channel, err := publisherChannel()
+	if err != nil {
+		return err
+	}
+	defer channel.Close()
+
+	// Keep existing queue properties so deployments can upgrade with their
+	// existing queues and workers.
+	if _, err := channel.QueueDeclare(queue, false, false, false, false, nil); err != nil {
+		return err
+	}
+	if err := channel.Confirm(false); err != nil {
+		return err
+	}
+	confirmed := channel.NotifyPublish(make(chan amqp.Confirmation, 1))
+	returned := channel.NotifyReturn(make(chan amqp.Return, 1))
+	if err := channel.Publish("", queue, true, false, amqp.Publishing{
+		ContentType: "application/json",
+		Body:        body,
+	}); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	select {
+	case confirmation, open := <-confirmed:
+		if !open || !confirmation.Ack {
+			return fmt.Errorf("RabbitMQ did not confirm message for %s", queue)
+		}
+		// An unroutable mandatory publish is returned before it is confirmed.
+		select {
+		case message := <-returned:
+			return fmt.Errorf("RabbitMQ returned message for %s: %s", queue, message.ReplyText)
+		default:
+			return nil
+		}
+	case <-ctx.Done():
+		return fmt.Errorf("wait for RabbitMQ confirmation: %w", ctx.Err())
+	}
+}
+
+func ConsumeNewOrder(symbol string) error {
+	return consume(symbol, func(body []byte) error {
+		var order OrderNode
+		if err := json.Unmarshal(body, &order); err != nil {
+			return err
+		}
+		if order.Symbol != symbol || (order.Action != ADD && order.Action != DEL) {
+			return fmt.Errorf("invalid order for queue %s", symbol)
 		}
 		DoOrder(order)
-	}
-
-	//}()
-	if Debug {
-		log.Printf("[*] Waiting for message, To exit press CTRL+C")
-	}
-	<-forever
+		return nil
+	})
 }
 
-func (r *RabbitMQ) ConsumeMatchOrder() {
-	_, err := r.channel.QueueDeclare(
-		r.Queuename,
-		false, // 是否持久化
-		false, // 是否自动删除
-		false, // 是否具有排他性？
-		false, // 是否阻塞
-		nil,   // 其它属性
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	messages, err := r.channel.Consume(
-		r.Queuename,
-		"",    // 用来区分多个消费者
-		true,  // 是否自动应答
-		false, // 是否具有排他性
-		false, // 如果设置为true，表示不能将同一个connection中发送的消息传递给这个connection中的消费者
-		false, // 队列消费是否阻塞
-		nil,
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-
-	forever := make(chan bool)
-	if Debug {
-		log.Printf("[*] Waiting for message, To exit press CTRL+C")
-	}
-	// 启用协程处理消息
-	//go func() {
-	for d := range messages {
-		order := MatchResult{}
-		err := json.Unmarshal(d.Body, &order)
-		if err != nil {
-			fmt.Println(err)
+func ConsumeMatchOrder(symbol string) error {
+	return consume("notice:"+symbol, func(body []byte) error {
+		var result MatchResult
+		if err := json.Unmarshal(body, &result); err != nil {
+			return err
 		}
-		if LogLevel == "debug" {
-			//utils.Info.Printf("撮合结果------：%#v\n", order)
+		log.Printf("order result: symbol=%s action=%d order=%s counterparty=%s volume=%g time=%s",
+			symbol, result.Action, result.Node.Oid, result.MatchNode.Oid, result.MatchVolume, result.MatchTime)
+		return nil
+	})
+}
+
+func consume(queue string, handle func([]byte) error) error {
+	conn, err := dialRabbitMQ()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	channel, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer channel.Close()
+	if _, err := channel.QueueDeclare(queue, false, false, false, false, nil); err != nil {
+		return err
+	}
+	messages, err := channel.Consume(queue, "", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	for message := range messages {
+		if err := handle(message.Body); err != nil {
+			log.Printf("consume %s: %v", queue, err)
 		}
 	}
-
-	//}()
-	if Debug {
-		log.Printf("[*] Waiting for message, To exit press CTRL+C")
-	}
-	<-forever
+	return fmt.Errorf("RabbitMQ consumer stopped for %s", queue)
 }

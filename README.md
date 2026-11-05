@@ -12,15 +12,17 @@
 
 1. **[Use docker to deploy the operating environment with one click](https://github.com/stingbo/gome-docker)**，Enter the gome container，`docker exec -it gome bash`
 
-2. Enter the api interface definition directory and generate a gRPC interface definition file: `cd /go/src/gome/api && protoc --go_out=plugins=grpc:. *.proto`
+2. Generated Go sources are checked in. After editing a protocol, run `protoc --go_out=plugins=grpc:. *.proto` in `api/` with `protoc-gen-go v1.4.3`.
 
-3. Enter the project directory, copy and modify the configuration: `cd /go/src/gome && copy config.example.yaml config.yaml`
+3. Enter the project directory, copy and modify the configuration: `cd /go/src/gome && cp config.example.yaml config.yaml`
 
-4. Start the gRPC server：`go run main.go`
+4. Start the gRPC server：`go run ./cmd/server`
 
-5. Start script to match consumption RabbitMQ queue：`go run match.go symbol`，symbol is the name of the trading pair，such as btc2usdt，the symbol should be the same as when called by the client
+5. Start script to match consumption RabbitMQ queue：`go run ./cmd/match symbol`，symbol is the name of the trading pair，such as btc2usdt，the symbol should be the same as when called by the client
 
-6. Start script consumption match result RabbitMQ queue：`go run match_notice.go symbol`.
+6. Start script consumption match result RabbitMQ queue：`go run ./cmd/notice symbol`.
+
+Set `GOME_CONFIG` to override the configuration path. Set `redis.password` if Redis requires authentication. Run `go build ./...` and `go test ./...` locally. Set `GOME_TEST_REDIS_PORT` to run the order-book regression test against an isolated Redis instance.
 
 ## Description
 
@@ -35,18 +37,18 @@
 
     > utils, tool script directory
 
-    > main.go, entry file
+    > cmd/server, entry file
 
-    > match.go, matchmaking script
+    > cmd/match, matchmaking script
 
-    > match_notice.go, match result consumption script
+    > cmd/notice, match result consumption script
 
-    > test.go, test script, the command is as follows:
+    > cmd/client, test script, the command is as follows:
 
-        1. Place an order:`go run test.go doOrder`
-        2. Cancel order:`go run test.go delOrder`
-        3. Get symbol depth:`go run test.go getDepth symbol transaction`
-        4. View command help:`go run test.go help`
+        1. Place an order:`go run ./cmd/client doOrder`
+        2. Cancel order:`go run ./cmd/client deleteOrder`
+        3. Get symbol depth:`go run ./cmd/client getDepth symbol transaction`
+        4. View command help:`go run ./cmd/client help`
 
 * Gome will use the symbol name as the order queue, the matching engine will consume this queue, and the matching result will be pushed to notice:+symbol as the name queue, such as notice:btc2usdt
 

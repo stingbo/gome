@@ -2,12 +2,11 @@ package engine
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	goredis "github.com/go-redis/redis/v8"
 	"gome/redis"
 	"gome/utils"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"log"
 	"strconv"
 	"time"
 )
@@ -20,41 +19,30 @@ const (
 )
 
 var (
-	ctx = context.Background()
-	cache = redis.NewRedisClient()
-	Conf *utils.MeConfig
+	ctx   = context.Background()
+	cache *goredis.Client
+	Conf  = &utils.MeConfig{}
 	Debug bool
-	LogLevel string
 )
 
 type MatchResult struct {
-	Action      int8    // 通知类型，1-match;2-del
+	Action      int8 // 通知类型，1-match;2-del
 	Node        OrderNode
 	MatchNode   OrderNode
 	MatchVolume float64
 	MatchTime   string
 }
 
-func init() {
-	confFile, _ := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(confFile, &Conf)
+func Configure(config *utils.MeConfig) {
+	Conf = config
+	cache = redis.NewRedisClient(config.CacheConf)
 	Debug = Conf.Debug
-	LogLevel = Conf.LogLevel
 }
 
-func PublishNewOrder(node OrderNode) bool {
-	if Debug {
-		fmt.Printf("来源数据----------:%#v\n", node)
+func publishResult(queue string, result MatchResult) {
+	if err := publish(ctx, queue, result); err != nil {
+		log.Printf("publish result for order %s: %v", result.Node.Oid, err)
 	}
-	symbol := node.Symbol
-	order, err := json.Marshal(node)
-	mq := NewSimpleRabbitMQ(symbol)
-	mq.PublishNewOrder(order)
-	if err != nil {
-		return false
-	}
-
-	return true
 }
 
 func DoOrder(node OrderNode) bool {
@@ -67,13 +55,32 @@ func DoOrder(node OrderNode) bool {
 	return true
 }
 
+// Claim a pending order once per symbol and also recognize orders already
+// resting at this price from before the accepted-order index was introduced.
+var claimOrder = goredis.NewScript(`
+if redis.call("HDEL", KEYS[1], ARGV[1]) == 0 then
+	return 0
+end
+local claimed = redis.call("HSETNX", KEYS[2], ARGV[2], 1)
+if claimed == 0 or redis.call("HEXISTS", KEYS[3], ARGV[3]) == 1 then
+	return 0
+end
+return 1
+`)
+
 func SetOrder(node OrderNode) bool {
 	pool := &Pool{Node: &node}
-	if false == pool.ExistsPrePool() {
+	claimed, err := claimOrder.Run(ctx, cache,
+		[]string{node.OrderHashKey, node.Symbol + ":accepted", node.NodeLink},
+		node.OrderHashField, node.Oid, node.NodeName).Int64()
+	if err != nil {
+		log.Printf("claim order %s: %v", node.Oid, err)
+		return false
+	}
+	if claimed != 1 {
 		return false
 	}
 
-	pool.DeletePrePool()
 	depths := pool.GetReverseDepth()
 	if Debug {
 		fmt.Printf("depths长度----------:%#v\n", len(depths))
@@ -98,7 +105,7 @@ func SetOrder(node OrderNode) bool {
 
 func DeleteOrder(node OrderNode) bool {
 	symbol := node.Symbol
-	noticeSymbol := "notice:"+symbol
+	noticeSymbol := "notice:" + symbol
 
 	// 一，从标识池删除，避免队列有积压时未消费问题
 	pool := &Pool{Node: &node}
@@ -133,22 +140,20 @@ func DeleteOrder(node OrderNode) bool {
 
 	// 撤单通知
 	matchResult := MatchResult{
-		Action: DEL,
-		Node: node,
-		MatchNode: node,
+		Action:      DEL,
+		Node:        node,
+		MatchNode:   node,
 		MatchVolume: 0,
-		MatchTime: time.Now().Format(timeFormat),
+		MatchTime:   time.Now().Format(timeFormat),
 	}
-	match, _ := json.Marshal(matchResult)
-	mq := NewSimpleRabbitMQ(noticeSymbol)
-	mq.PublishNewOrder(match)
+	publishResult(noticeSymbol, matchResult)
 
 	return true
 }
 
-func Match(node *OrderNode, depths [][]string) *OrderNode {
+func Match(node *OrderNode, depths []string) *OrderNode {
 	for _, v := range depths {
-		price, _ := strconv.ParseFloat(v[0], 64)
+		price, _ := strconv.ParseFloat(v, 64)
 		nodeLink := OrderNode{} //copy一个新的节点
 		nodeLink = *node
 		nodeLink.Price = price
@@ -170,7 +175,7 @@ func Match(node *OrderNode, depths [][]string) *OrderNode {
 
 func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 	symbol := node.Symbol
-	noticeSymbol := "notice:"+symbol
+	noticeSymbol := "notice:" + symbol
 	matchNode := link.GetFirstNode()
 	if matchNode.Oid == "" {
 		return node
@@ -185,15 +190,13 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 
 		// 撮合成功通知
 		matchResult := MatchResult{
-			Action: ADD,
-			Node: *node,
-			MatchNode: *matchNode,
+			Action:      ADD,
+			Node:        *node,
+			MatchNode:   *matchNode,
 			MatchVolume: matchVolume,
-			MatchTime: time.Now().Format(timeFormat),
+			MatchTime:   time.Now().Format(timeFormat),
 		}
-		match, _ := json.Marshal(matchResult)
-		mq := NewSimpleRabbitMQ(noticeSymbol)
-		mq.PublishNewOrder(match)
+		publishResult(noticeSymbol, matchResult)
 
 		// 递归匹配
 		MatchOrder(node, link)
@@ -205,15 +208,13 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 
 		// 撮合成功通知
 		matchResult := MatchResult{
-			Action: ADD,
-			Node: *node,
-			MatchNode: *matchNode,
+			Action:      ADD,
+			Node:        *node,
+			MatchNode:   *matchNode,
 			MatchVolume: matchVolume,
-			MatchTime: time.Now().Format(timeFormat),
+			MatchTime:   time.Now().Format(timeFormat),
 		}
-		match, _ := json.Marshal(matchResult)
-		mq := NewSimpleRabbitMQ(noticeSymbol)
-		mq.PublishNewOrder(match)
+		publishResult(noticeSymbol, matchResult)
 	case diff < 0:
 		matchVolume := node.Volume
 		matchNode.Volume = matchNode.Volume - matchVolume
@@ -226,15 +227,13 @@ func MatchOrder(node *OrderNode, link *NodeLink) *OrderNode {
 
 		// 撮合成功通知
 		matchResult := MatchResult{
-			Action: ADD,
-			Node: *node,
-			MatchNode: *matchNode,
+			Action:      ADD,
+			Node:        *node,
+			MatchNode:   *matchNode,
 			MatchVolume: matchVolume,
-			MatchTime: time.Now().Format(timeFormat),
+			MatchTime:   time.Now().Format(timeFormat),
 		}
-		match, _ := json.Marshal(matchResult)
-		mq := NewSimpleRabbitMQ(noticeSymbol)
-		mq.PublishNewOrder(match)
+		publishResult(noticeSymbol, matchResult)
 	}
 
 	return node

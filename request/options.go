@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"google.golang.org/grpc/metadata"
 	"time"
 
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
@@ -200,17 +199,11 @@ type MessageProducer func(ctx context.Context, msg string, level zapcore.Level, 
 
 // DefaultMessageProducer writes the default message
 func DefaultMessageProducer(ctx context.Context, msg string, level zapcore.Level, code codes.Code, err error, duration zapcore.Field, reqInfo interface{}, respInfo interface{}) {
-	header := zap.Skip()
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		header = zap.Any("header", md)
-	}
 	req := zap.Any("request", reqInfo)
 	resp := zap.Any("response", respInfo)
 
 	// re-extract logger from newCtx, as it may have extra fields that changed in the holder.
 	ctxzap.Extract(ctx).Check(level, msg).Write(
-		header,
 		req,
 		resp,
 		zap.Error(err),

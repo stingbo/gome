@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 	"gome/api"
 	rpc "gome/grpc"
+	"gome/utils"
 	"log"
 	"math/rand"
 	"os"
@@ -15,30 +16,35 @@ import (
 )
 
 func main() {
+	config, err := utils.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	rpc.Conf = config
 	app := &cli.App{
 		Commands: []*cli.Command{
 			{
-				Name:    "doOrder",
-				Usage:   "下单",
-				Action:  func(c *cli.Context) error {
+				Name:  "doOrder",
+				Usage: "下单",
+				Action: func(c *cli.Context) error {
 					fmt.Println("开始下单-----------:")
 					DoOrder()
 					return nil
 				},
 			},
 			{
-				Name:    "deleteOrder",
-				Usage:   "撤单",
-				Action:  func(c *cli.Context) error {
+				Name:  "deleteOrder",
+				Usage: "撤单",
+				Action: func(c *cli.Context) error {
 					fmt.Println("开始撤单-----------:")
 					DeleteOrder()
 					return nil
 				},
 			},
 			{
-				Name:    "getDepth",
-				Usage:   "获取深度",
-				Action:  func(c *cli.Context) error {
+				Name:  "getDepth",
+				Usage: "获取深度",
+				Action: func(c *cli.Context) error {
 					symbol := c.Args().First()
 					if symbol == "" {
 						return errors.New("请输入需要查询深度的交易对名称")
@@ -71,13 +77,13 @@ func main() {
 		},
 	}
 
-	err := app.Run(os.Args)
+	err = app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func GetDepth (symbol string, tran int, offset int64, count int64) api.DepthResponse {
+func GetDepth(symbol string, tran int, offset int64, count int64) *api.DepthResponse {
 	conn := rpc.NewRpcClient()
 	defer conn.Close()
 	client := api.NewPoolClient(conn)
@@ -92,7 +98,7 @@ func GetDepth (symbol string, tran int, offset int64, count int64) api.DepthResp
 	}
 	log.Println(resp.Message)
 
-	return *resp
+	return resp
 }
 
 func DoOrder() {
@@ -116,7 +122,7 @@ func DoOrder() {
 		}
 		//order := api.OrderRequest{Uuid: "2", Oid: strconv.Itoa(i), Symbol: "eth2usdt", Transaction: api.TransactionType(t), Price: p, Volume: float64(v)}
 		order := api.OrderRequest{Uuid: "2", Oid: strconv.Itoa(i), Symbol: "eth2usdt", Transaction: api.TransactionType(t), Price: p, Volume: v}
-		fmt.Printf("下单--------%#v\n", order)
+		fmt.Printf("下单--------%v\n", &order)
 		resp, err := client.DoOrder(context.Background(), &order)
 		if err != nil {
 			log.Fatalln("Do Format error:" + err.Error())

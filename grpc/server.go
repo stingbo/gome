@@ -2,41 +2,11 @@ package grpc
 
 import (
 	"gome/utils"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
-	"log"
 	"net"
 )
 
 var Conf *utils.MeConfig
 
-type gRPC struct {
-	Listener net.Listener
-	Protocol string
-	RPCurl   string
-}
-
-func init() {
-	confFile, _ := ioutil.ReadFile("config.yaml")
-	yaml.Unmarshal(confFile, &Conf)
-}
-
-func NewRpcListener() *gRPC {
-	host := Conf.GRPCConf.Host
-	port := Conf.GRPCConf.Port
-	RPCurl := host + ":" + port
-	gRPC := &gRPC{Protocol: "tcp", RPCurl: RPCurl}
-
-	var err error
-	gRPC.Listener, err = net.Listen(gRPC.Protocol, gRPC.RPCurl)
-	if err != nil {
-		log.Println("错误:", err)
-		panic("服务启动失败")
-	} else {
-		if Conf.Debug {
-			log.Println("服务启动成功，正在监听: " + host + ":" + port)
-		}
-	}
-
-	return gRPC
+func NewRpcListener(config utils.GRPC) (net.Listener, error) {
+	return net.Listen("tcp", net.JoinHostPort(config.Host, config.Port))
 }
