@@ -6,7 +6,7 @@
 
 ## Requirement
 
-Deploy Gome v1.0.2 with [Gome Docker v1.0.0](https://github.com/stingbo/gome-docker/releases/tag/v1.0.0). Follow its [Compose quickstart](https://github.com/stingbo/gome-docker/blob/v1.0.0/README.md#快速开始) to start Gome, Redis, and RabbitMQ together.
+Deploy Gome v1.0.2 from its published container image using [gome-docker](https://github.com/stingbo/gome-docker). The Compose setup starts Gome, Redis, and RabbitMQ together.
 
 ## Install and run v1.0.2
 
@@ -25,7 +25,7 @@ The binaries are installed in `GOBIN`, or in `$(go env GOPATH)/bin` if `GOBIN` i
 
 ### Docker Compose quickstart
 
-Clone the deployment repository at `v1.0.0`, copy its `.env.example` to `.env`, and set `RABBITMQ_PASSWORD`. Then run `docker compose up -d --build --wait` and `docker compose run --rm client` from that repository.
+Clone the deployment repository, copy its `.env.example` to `.env`, and set `RABBITMQ_PASSWORD`. Run `docker compose pull` and `docker compose up -d --no-build --wait`, then query depth with `docker compose run --rm client`. The default image is `ghcr.io/stingbo/gome:v1.0.2`. If GHCR is unreachable from your host, see the [mirror configuration in gome-docker](https://github.com/stingbo/gome-docker#中国大陆网络拉取).
 
 ### Local quickstart
 

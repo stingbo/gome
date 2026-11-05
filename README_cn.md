@@ -4,7 +4,7 @@
 
 ## 依赖
 
-使用 [Gome Docker v1.0.0](https://github.com/stingbo/gome-docker/releases/tag/v1.0.0) 部署 Gome v1.0.2。按 [Compose 快速部署说明](https://github.com/stingbo/gome-docker/blob/v1.0.0/README.md#快速开始) 一起启动 Gome、Redis 和 RabbitMQ。
+使用 [gome-docker](https://github.com/stingbo/gome-docker) 拉取 Gome v1.0.2 的发布镜像，并通过 Compose 一起启动 Gome、Redis 和 RabbitMQ。
 
 ## 安装并运行 v1.0.2
 
@@ -23,7 +23,7 @@ go install github.com/stingbo/gome/cmd/client@v1.0.2
 
 ### 用 Docker Compose 快速部署
 
-克隆部署仓库的 `v1.0.0` 标签，将其中的 `.env.example` 复制为 `.env` 并填写 `RABBITMQ_PASSWORD`。在该仓库目录运行 `docker compose up -d --build --wait` 启动，再用 `docker compose run --rm client` 查询深度。
+克隆部署仓库，将 `.env.example` 复制为 `.env` 并填写 `RABBITMQ_PASSWORD`。运行 `docker compose pull` 和 `docker compose up -d --no-build --wait`，再用 `docker compose run --rm client` 查询深度。默认镜像为 `ghcr.io/stingbo/gome:v1.0.2`。部署主机无法访问 GHCR 时，参照 [gome-docker 的镜像加速配置](https://github.com/stingbo/gome-docker#中国大陆网络拉取)。
 
 ### 本机快速开始
 
