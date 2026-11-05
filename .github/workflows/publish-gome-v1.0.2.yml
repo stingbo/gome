@@ -1,0 +1,38 @@
+name: Publish Gome v1.0.2
+on:
+  push:
+    branches: [codex/publish-gome-v1.0.2]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Enable arm64 emulation
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+
+      - name: Fetch the released Docker build
+        run: |
+          git clone --depth 1 --branch v1.0.0 https://github.com/stingbo/gome-docker.git
+          test "$(git -C gome-docker rev-parse HEAD)" = ff14d34503454cb318baceedac406c246c0d4312
+
+      - name: Build and publish the release image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --driver docker-container --use
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg GOME_VERSION=v1.0.2 \
+            --label org.opencontainers.image.source=https://github.com/stingbo/gome \
+            --label org.opencontainers.image.version=v1.0.2 \
+            --label org.opencontainers.image.licenses=MIT \
+            --tag ghcr.io/stingbo/gome:v1.0.2 \
+            --push gome-docker/golang
