@@ -8,9 +8,11 @@
 
 - Specific dependency information can be viewed **[docker-composer file](https://github.com/stingbo/gome-docker/blob/master/docker-compose.example.yml)**
 
-## Usage
+## Install and run v1.0.1
 
-Install the executables with Go 1.16 or later.
+Browse the versioned module and its packages on [pkg.go.dev](https://pkg.go.dev/github.com/stingbo/gome@v1.0.1). Release notes and source archives are on [GitHub Releases](https://github.com/stingbo/gome/releases/tag/v1.0.1).
+
+With Go 1.16 or later, run these commands from any directory.
 
 ```bash
 go install github.com/stingbo/gome/cmd/server@v1.0.1
@@ -19,7 +21,19 @@ go install github.com/stingbo/gome/cmd/notice@v1.0.1
 go install github.com/stingbo/gome/cmd/client@v1.0.1
 ```
 
-The commands install `server`, `match`, `notice`, and `client` in `GOBIN` (by default, `$(go env GOPATH)/bin`). To run the services, copy the example configuration from the matching source tag and configure Redis and RabbitMQ as described below.
+The binaries are installed in `GOBIN`, or in `$(go env GOPATH)/bin` if `GOBIN` is unset. Add that directory to your `PATH` to run the commands by name.
+
+Start Redis and RabbitMQ, then copy the [v1.0.1 example configuration](https://github.com/stingbo/gome/blob/v1.0.1/config.example.yaml) to `config.yaml` and set their connection details. Run each command in a separate terminal from the directory containing `config.yaml`. Use the same trading pair in `match`, `notice`, and client requests.
+
+```bash
+server
+match btc2usdt
+notice btc2usdt
+```
+
+Set `GOME_CONFIG` to an absolute path to use a configuration file in another directory.
+
+### Run from source
 
 1. **[Use docker to deploy the operating environment with one click](https://github.com/stingbo/gome-docker)**，Enter the gome container，`docker exec -it gome bash`
 
