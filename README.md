@@ -1,5 +1,10 @@
 ## Gome-High performance matchmaking engine microservice
 
+[![Release](https://img.shields.io/github/v/release/stingbo/gome)](https://github.com/stingbo/gome/releases/latest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/stingbo/gome.svg)](https://pkg.go.dev/github.com/stingbo/gome)
+[![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/stingbo/gome/pkgs/container/gome)
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 - Using golang as computing, grpc as service, protobuf as data exchange, rabbitmq as queue, redis as cache to realize high-performance matchmaking engine micro service
 
 - [中文文档](https://github.com/stingbo/gome/blob/master/README_cn.md)

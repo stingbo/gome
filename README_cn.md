@@ -1,5 +1,10 @@
 ## Gome 高性能撮合引擎微服务
 
+[![Release](https://img.shields.io/github/v/release/stingbo/gome)](https://github.com/stingbo/gome/releases/latest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/stingbo/gome.svg)](https://pkg.go.dev/github.com/stingbo/gome)
+[![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/stingbo/gome/pkgs/container/gome)
+[![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 - 使用 Golang 做计算，gRPC 做服务，ProtoBuf 做数据交换，RabbitMQ 做队列，Redis 做缓存实现的高性能撮合引擎微服务
 
 ## 依赖
