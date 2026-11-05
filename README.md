@@ -24,6 +24,16 @@
 
 Set `GOME_CONFIG` to override the configuration path. Set `redis.password` if Redis requires authentication. Run `go build ./...` and `go test ./...` locally. Set `GOME_TEST_REDIS_PORT` to run the order-book regression test against an isolated Redis instance.
 
+## Delivery and recovery
+
+The worker commits book changes, replay markers, and pending notices in one Redis transaction. It retries pending notices on reconnect and ACKs order commands only after RabbitMQ confirms their notices. Notice consumers should deduplicate using the JSON `EventID` or AMQP `message_id` and ACK after committing their own side effects. Use unique order IDs per symbol.
+
+Use persistent storage for both services. Redis requires `appendonly yes`, `appendfsync always`, `no-appendfsync-on-rewrite no`, and `maxmemory-policy noeviction`. The worker verifies these settings using `CONFIG GET`. Both RabbitMQ queues use durable declarations and persistent messages.
+
+When upgrading from the old non-durable queues, stop old publishers and drain both queues with the old consumers. Verify that ready and unacknowledged counts are zero before stopping the consumers and removing the empty queues. Keep the Redis data and let the new version recreate the queues with the same names.
+
+To run the broker recovery test, set both `GOME_TEST_REDIS_PORT` and `GOME_TEST_RABBITMQ_PORT` to local ports for isolated instances. Enable the Redis settings above and set the RabbitMQ test username and password to `gome-test`. Run `go test -race ./engine`.
+
 ## Description
 
 * gome Catalog description：

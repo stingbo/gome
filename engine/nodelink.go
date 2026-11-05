@@ -1,164 +1,137 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+
+	"github.com/go-redis/redis/v8"
 )
 
-type NodeLink struct {
-	Current *OrderNode
-	Node    *OrderNode
+// priceLevel stages the touched FIFO links in memory until the book commits.
+type priceLevel struct {
+	key     string
+	first   string
+	last    string
+	changes map[string]*OrderNode
 }
 
-func (nl *NodeLink) InitOrderLink() {
-	nl.Node.IsFirst = true
-	nl.Node.IsLast = true
-
-	nl.SetFirstPointer(nl.Node.NodeName)
-	nl.SetLastPointer(nl.Node.NodeName)
-	nl.SetLinkNode(nl.Node, nl.Node.NodeName)
-}
-
-func (nl *NodeLink) GetLinkNode(nodeName string) *OrderNode {
-	res := cache.HGet(ctx, nl.Node.NodeLink, nodeName)
-	if res.Val() == "" {
-		return &OrderNode{}
+func loadLevel(ctx context.Context, tx *redis.Tx, key string) (*priceLevel, error) {
+	if err := tx.Watch(ctx, key).Err(); err != nil {
+		return nil, err
 	}
-
-	node := &OrderNode{}
-	json.Unmarshal([]byte(res.Val()), &node)
-	nl.Current = node // 获取某个节点时，把此节点设置为当前节点
-
-	return node
-}
-
-func (nl *NodeLink) SetFirstPointer(nodename string) {
-	cache.HSet(ctx, nl.Node.NodeLink, "f", nodename)
-}
-
-func (nl *NodeLink) GetFirstNode() *OrderNode {
-	res := cache.HGet(ctx, nl.Node.NodeLink, "f")
-	if res.Val() == "" {
-		return &OrderNode{}
+	pointers, err := tx.HMGet(ctx, key, "f", "l").Result()
+	if err != nil {
+		return nil, err
 	}
-
-	node := nl.GetLinkNode(res.Val())
-	if node.Uuid != "" {
-		return node
+	first, _ := pointers[0].(string)
+	last, _ := pointers[1].(string)
+	if (first == "") != (last == "") {
+		return nil, fmt.Errorf("inconsistent price level pointers at %s", key)
 	}
-	nl.Current = node
-
-	return node
+	return &priceLevel{key: key, first: first, last: last, changes: make(map[string]*OrderNode)}, nil
 }
 
-func (nl *NodeLink) SetLast() {
-	nl.GetLast()
-	nl.Current.IsLast = false
-	nl.Current.NextNode = nl.Node.NodeName
-	nl.SetLinkNode(nl.Current, nl.Current.NodeName) // 更新本身节点信息
-
-	nl.Node.PrevNode = nl.Current.NodeName // 重置last节点信息
-	nl.SetLastPointer(nl.Node.NodeName)
-
-	nl.Node.IsLast = true
-	nl.SetLinkNode(nl.Node, nl.Node.NodeName)
-}
-
-func (nl *NodeLink) SetLastPointer(nodename string) {
-	cache.HSet(ctx, nl.Node.NodeLink, "l", nodename)
-}
-
-func (nl *NodeLink) GetLast() *OrderNode {
-	res := cache.HGet(ctx, nl.Node.NodeLink, "l")
-	if res.Val() == "" {
-		return &OrderNode{}
+func (level *priceLevel) get(ctx context.Context, tx *redis.Tx, name string) (*OrderNode, error) {
+	if node, changed := level.changes[name]; changed {
+		return node, nil
 	}
-
-	node := nl.GetLinkNode(res.Val())
-	if node.Uuid == "" {
-		return node
+	raw, err := tx.HGet(ctx, level.key, name).Result()
+	if err == redis.Nil {
+		return nil, nil
 	}
-	nl.Current = node
-
-	return node
+	if err != nil {
+		return nil, err
+	}
+	var node OrderNode
+	if err := json.Unmarshal([]byte(raw), &node); err != nil {
+		return nil, err
+	}
+	if node.NodeName != name || node.NodeLink != level.key || node.Oid == "" || !(node.Volume > 0) {
+		return nil, fmt.Errorf("invalid order node %s at %s", name, level.key)
+	}
+	return &node, nil
 }
 
-func (nl *NodeLink) GetCurrent() *OrderNode {
-	return nl.Current
-}
-
-func (nl *NodeLink) GetPrev() *OrderNode {
-	current := nl.GetCurrent()
-	prevName := current.PrevNode
-	if prevName == "" {
-		return &OrderNode{}
-	}
-	node := nl.GetLinkNode(prevName)
-	if node.Oid == "" {
-		return &OrderNode{}
-	}
-	//nl.Current = node //是否需要重置当前节点?
-
-	return node
-}
-
-func (nl *NodeLink) GetNext() *OrderNode {
-	current := nl.GetCurrent()
-	nextName := current.NextNode
-	if nextName == "" {
-		return &OrderNode{}
-	}
-	node := nl.GetLinkNode(nextName)
-	if node.Oid == "" {
-		return &OrderNode{}
-	}
-	//nl.Current = node //是否需要重置当前节点?
-
-	return node
-}
-
-func (nl *NodeLink) SetLinkNode(node *OrderNode, nodeName string) {
-	nodeJson, _ := json.Marshal(node)
-	cache.HSet(ctx, nl.Node.NodeLink, nodeName, nodeJson)
-}
-
-func (nl *NodeLink) DeleteLinkNode(node *OrderNode) {
-	if node.IsFirst && node.IsLast {
-		cache.HDel(ctx, node.NodeLink, "f")
-		cache.HDel(ctx, node.NodeLink, "l")
-		cache.HDel(ctx, node.NodeLink, node.NodeName)
-	} else if node.IsFirst && !node.IsLast {
-		next := nl.GetNext()
-		if next.Oid == "" {
-			panic("expects next node is not empty.")
-		}
-		cache.HDel(ctx, node.NodeLink, node.NodeName)
-		next.IsFirst = true
-		next.PrevNode = ""
-		nl.SetFirstPointer(next.NodeName)
-		nl.SetLinkNode(next, next.NodeName)
-	} else if !node.IsFirst && node.IsLast {
-		prev := nl.GetPrev()
-		if prev.Oid == "" {
-			panic("expects prev node is not empty.")
-		}
-		cache.HDel(ctx, node.NodeLink, node.NodeName)
-		prev.IsLast = true
-		prev.NextNode = ""
-		nl.SetLastPointer(prev.NodeName)
-		nl.SetLinkNode(prev, prev.NodeName)
+func (level *priceLevel) append(ctx context.Context, tx *redis.Tx, node OrderNode) error {
+	node.IsFirst = level.first == ""
+	node.IsLast = true
+	node.PrevNode = level.last
+	node.NextNode = ""
+	if node.IsFirst {
+		level.first = node.NodeName
 	} else {
-		prev := nl.GetPrev()
-		current := nl.GetNext()
-		next := nl.GetNext()
-
-		if prev.Oid == "" && next.Oid == "" {
-			panic("expects relation node is not empty.")
+		tail, err := level.get(ctx, tx, level.last)
+		if err != nil {
+			return err
 		}
-		cache.HDel(ctx, current.NodeLink, current.NodeName)
-
-		prev.NextNode = next.NodeName
-		next.PrevNode = prev.NodeName
-		nl.SetLinkNode(prev, prev.NodeName)
-		nl.SetLinkNode(next, next.NodeName)
+		if tail == nil || tail.NextNode != "" || !tail.IsLast {
+			return fmt.Errorf("invalid tail at %s", level.key)
+		}
+		tail.NextNode = node.NodeName
+		tail.IsLast = false
+		level.changes[tail.NodeName] = tail
 	}
+	level.last = node.NodeName
+	level.changes[node.NodeName] = &node
+	return nil
+}
+
+func (level *priceLevel) remove(ctx context.Context, tx *redis.Tx, node *OrderNode) error {
+	if node.PrevNode == "" {
+		if level.first != node.NodeName {
+			return fmt.Errorf("invalid head at %s", level.key)
+		}
+		level.first = node.NextNode
+	} else {
+		prev, err := level.get(ctx, tx, node.PrevNode)
+		if err != nil {
+			return err
+		}
+		if prev == nil || prev == node || prev.NodeName == node.NodeName || prev.NextNode != node.NodeName {
+			return fmt.Errorf("invalid predecessor of %s", node.NodeName)
+		}
+		prev.NextNode = node.NextNode
+		prev.IsLast = node.NextNode == ""
+		level.changes[prev.NodeName] = prev
+	}
+	if node.NextNode == "" {
+		if level.last != node.NodeName {
+			return fmt.Errorf("invalid tail at %s", level.key)
+		}
+		level.last = node.PrevNode
+	} else {
+		next, err := level.get(ctx, tx, node.NextNode)
+		if err != nil {
+			return err
+		}
+		if next == nil || next.NodeName == node.NodeName || next.PrevNode != node.NodeName {
+			return fmt.Errorf("invalid successor of %s", node.NodeName)
+		}
+		next.PrevNode = node.PrevNode
+		next.IsFirst = node.PrevNode == ""
+		level.changes[next.NodeName] = next
+	}
+	level.changes[node.NodeName] = nil
+	return nil
+}
+
+func (level *priceLevel) write(ctx context.Context, pipe redis.Pipeliner) error {
+	if level.first == "" {
+		pipe.Del(ctx, level.key)
+		return nil
+	}
+	pipe.HSet(ctx, level.key, "f", level.first, "l", level.last)
+	for name, node := range level.changes {
+		if node == nil {
+			pipe.HDel(ctx, level.key, name)
+			continue
+		}
+		raw, err := json.Marshal(node)
+		if err != nil {
+			return err
+		}
+		pipe.HSet(ctx, level.key, name, raw)
+	}
+	return nil
 }

@@ -9,7 +9,8 @@ import (
 
 func NewRedisClient(config utils.Cache) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     net.JoinHostPort(config.Host, config.Port),
-		Password: config.Password,
+		Addr:       net.JoinHostPort(config.Host, config.Port),
+		Password:   config.Password,
+		MaxRetries: -1, // A failed EXEC may already have committed. Replay the order instead.
 	})
 }

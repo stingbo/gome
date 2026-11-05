@@ -23,7 +23,7 @@ func main() {
 			if symbol == "" {
 				return errors.New("请输入需要消费的队列名称")
 			}
-			return engine.ConsumeNewOrder(symbol)
+			return engine.ConsumeNewOrder(c.Context, symbol)
 		},
 	}
 

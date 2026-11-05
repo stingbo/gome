@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"gome/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -20,12 +22,6 @@ func (o Order) DoOrder(ctx context.Context, request *api.OrderRequest) (*api.Ord
 	// 实例化撮合所需要的node
 	orderNode := NewOrderNode(request)
 	orderNode.Action = ADD
-	// 放入预热池
-	pool := Pool{Node: orderNode}
-	if err := pool.SetPrePool(ctx); err != nil {
-		return nil, status.Error(codes.Unavailable, "order book unavailable")
-	}
-
 	// 下单队列
 	if err := publish(ctx, orderNode.Symbol, orderNode); err != nil {
 		log.Printf("publish order command for %s: %v", orderNode.Symbol, err)
@@ -41,8 +37,16 @@ func (o Order) DeleteOrder(ctx context.Context, request *api.OrderRequest) (*api
 		return nil, err
 	}
 	// 实例化撮合所需要的node
-	orderNode := NewOrderNode(request)
+	orderNode := NewOrderNode(&api.OrderRequest{
+		Uuid: request.Uuid, Oid: request.Oid, Symbol: request.Symbol,
+		Transaction: request.Transaction, Price: request.Price,
+	})
 	orderNode.Action = DEL
+	var commandID [16]byte
+	if _, err := rand.Read(commandID[:]); err != nil {
+		return nil, status.Error(codes.Internal, "cannot generate cancellation ID")
+	}
+	orderNode.CommandID = hex.EncodeToString(commandID[:])
 
 	// 删除队列
 	if err := publish(ctx, orderNode.Symbol, orderNode); err != nil {

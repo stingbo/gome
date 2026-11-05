@@ -22,7 +22,18 @@
 
 可用 `GOME_CONFIG` 指定配置文件。Redis 启用密码时请填写 `redis.password`，否则留空。构建和测试可运行 `go build ./...` 和 `go test ./...`。设置 `GOME_TEST_REDIS_PORT` 可在隔离 Redis 实例中运行订单簿回归测试。
 
-每个交易对运行一个撮合进程。Redis 会记录该交易对已处理的订单 ID，订单成交或撤销后也应继续使用新 ID。现有队列配置保留，进程或 broker 故障期间仍可能丢失消息。
+## 消息恢复与升级
+
+- 每个交易对只允许一个撮合消费者。Redis 在同一事务写入订单簿、去重记录及待发布回报。撮合进程重连时先补发回报，每条回报在 RabbitMQ 确认后才从 Redis 移除。下单与撤单指令在处理完成后手动 ACK。
+- 回报可能重复送达。下游应将 JSON 的 `EventID` 或 AMQP 的 `message_id` 作为幂等键，在业务写入成功后再 ACK。每个交易对的订单 ID 应全程唯一。Redis 中的去重记录会保留，请把增长量纳入容量规划。
+- Redis 需使用持久磁盘，并配置 `appendonly yes`、`appendfsync always`、`no-appendfsync-on-rewrite no`、`maxmemory-policy noeviction`。撮合进程启动和重连时使用 `CONFIG GET` 校验这些选项。RabbitMQ 也需使用持久磁盘，订单队列和回报队列均声明为 durable，并发布持久消息。此配置覆盖使用原数据盘的服务重启，磁盘丢失或切换到未同步副本需要独立的容灾方案。
+- 从旧版本升级时，先停止旧版生产者，用旧版消费者排空每个交易对的订单与回报队列。确认 ready 和 unacked 均为零后停止旧版消费者，仅删除已确认空的旧非持久队列。新版本会以原队列名重建持久队列。升级时保留 Redis 订单簿和去重数据，并禁止旧版撮合进程继续写入。
+
+在隔离环境中运行故障测试时，使用启用了上述持久选项的 Redis 和独立 RabbitMQ 实例。给 RabbitMQ 测试实例配置用户名和密码 `gome-test`，然后运行：
+
+```sh
+GOME_TEST_REDIS_PORT=<Redis本机端口> GOME_TEST_RABBITMQ_PORT=<RabbitMQ本机端口> go test -race ./engine
+```
 
 ## 说明
 

@@ -7,6 +7,7 @@ import (
 )
 
 type OrderNode struct {
+	CommandID   string  `json:",omitempty"`
 	Action      int8    // 节点操作类型，1-add，2-del
 	Uuid        string  // 用户唯一标识
 	Oid         string  // 订单唯一标识
